@@ -1,0 +1,86 @@
+image: golang:1.15
+
+variables:
+  REPO_NAME: go-stepik-tests
+
+before_script:
+  - mkdir -p $GOPATH/src/$(dirname $REPO_NAME)
+  - ln -svf $CI_PROJECT_DIR $GOPATH/src/$REPO_NAME
+  - cd $GOPATH/src/$REPO_NAME
+
+stages:
+    - homework
+
+hw1:
+    stage: homework
+    script:
+      - if [[ -n $(gofmt -l 1/99_hw/game/) ]]; then echo "You need to format your code using gofmt" && exit 1; fi
+      - go test -v ./1/99_hw/game/...
+      - echo "Assigment completed! Ask teacher for code review"
+    only:
+      changes:
+        - 1/99_hw/game/*
+
+hw1_en:
+    stage: homework
+    script:
+      - if [[ -n $(gofmt -l 1/99_hw/game_en/) ]]; then echo "You need to format your code using gofmt" && exit 1; fi
+      - go test -v ./1/99_hw/game_en/...
+      - echo "Assigment completed! Ask teacher for code review"
+    only:
+      changes:
+        - 1/99_hw/game_en/*
+
+hw2:
+    stage: homework
+    script:
+      - if [[ -n $(gofmt -l ./2/99_hw/signer/) ]]; then echo "You need to format your code using gofmt" && exit 1; fi
+      - go test -v -race ./2/99_hw/...
+      - echo "Assigment completed! Ask teacher for code review"
+    only:
+      changes:
+        - 2/99_hw/signer/*
+
+hw4:
+    stage: homework
+    script:
+      - if [[ -n $(gofmt -l ./4/99_hw/) ]]; then echo "You need to format your code using gofmt" && exit 1; fi
+      - x=$(go test -v -cover ./4/99_hw... | grep coverage) && if [[ "$x" != *"100.0%"* ]]; then echo "$x" && exit 1; fi
+      - echo "Assigment completed! Ask teacher for code review"
+    only:
+      changes:
+        - 4/99_hw/*
+
+hw5_codegen:
+    stage: homework
+    script:
+      - if [[ -n $(gofmt -l ./5/99_hw/codegen/) ]]; then echo "You need to format your code using gofmt" && exit 1; fi
+      - cd 5/99_hw/codegen
+      - go build handlers_gen/* && ./codegen api.go api_handlers.go
+      - go test -v
+      - echo "Assigment completed! Ask teacher for code review"
+    only:
+      changes:
+        - 5/99_hw/codegen/*
+
+hw7:
+    stage: homework
+    script:
+      - if [[ -n $(gofmt -l ./7/99_hw/) ]]; then echo "You need to format your code using gofmt" && exit 1; fi
+      - cd 7/99_hw
+      - go test -v -race
+      - echo "Assigment completed! Ask teacher for code review"
+    only:
+      changes:
+        - 7/99_hw/*
+
+hw8:
+    stage: homework
+    script:
+      - if [[ -n $(gofmt -l ./8/99_hw/) ]]; then echo "You need to format your code using gofmt" && exit 1; fi
+      - cd 8/99_hw
+      - go test -v
+      - echo "Assigment completed! Ask teacher for code review"
+    only:
+      changes:
+        - 8/99_hw/*
