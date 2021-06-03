@@ -16,6 +16,7 @@
 * http://www.tapirgames.com/blog/golang-channel
 * http://www.tapirgames.com/blog/golang-channel-closing
 * https://github.com/golang/go/wiki/CommonMistakes
+* https://github.com/lotusirous/go-concurrency-patterns
 
 Видео:
 * https://www.youtube.com/watch?v=5buaPyJ0XeQ - классное выступление Dave Cheney про функции первого класса и использование их с горутинами, очень рекомендую, оно небольшое
