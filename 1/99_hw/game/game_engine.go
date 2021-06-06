@@ -24,6 +24,10 @@ func (ge *GameEngine) AddCommand(name string, foo func(ge *GameEngine, args ...s
 	ge.commandHandler.commands[name] = foo
 }
 
+func (ge *GameEngine) AddUser(user User) {
+	ge.user = user
+}
+
 func (ge *GameEngine) HandleCommand(command string) string {
 	splitted := strings.Split(command, " ")
 	if len(splitted) == 0 {

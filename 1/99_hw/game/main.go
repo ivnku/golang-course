@@ -1,29 +1,63 @@
 package main
 
-/*
-	код писать в этом файле
-	наверняка у вас будут какие-то структуры с методами, глобальные перменные ( тут можно ), функции
-*/
+import (
+	"bufio"
+	"fmt"
+	"os"
+)
+
+var gameEngine = NewGameEngine()
 
 func main() {
-	/*
-		в этой функции можно ничего не писать
-		но тогда у вас не будет работать через go run main.go
-		очень круто будет сделать построчный ввод команд тут, хотя это и не требуется по заданию
-	*/
+	initGame()
+	input := bufio.NewScanner(os.Stdin)
+	for input.Scan() {
+		fmt.Println(handleCommand(input.Text()))
+	}
 }
 
 func initGame() {
-	/*
-		эта функция инициализирует игровой мир - все команты
-		если что-то было - оно корректно перезатирается
-	*/
+	kitchen := Room{
+		name:           "Кухня",
+		lookAroundText: "ты находишься на кухне, :items, надо собрать рюкзак и идти в универ. :routes",
+	}
+	kitchen.AddItem("на столе", Item{name: "чай"})
+	kitchen.AddRoutes([]string{"коридор"})
+
+	corridor := Room{
+		name:      "Коридор",
+		entryText: "ничего интересного. :routes",
+	}
+	corridor.AddRoutes([]string{"комната", "кухня", "улица"})
+
+	room := Room{
+		name:           "Комната",
+		entryText:      "ты в своей комнате. можно пройти - коридор",
+		lookAroundText: "на столе: ключи, конспекты, на стуле: рюкзак. можно пройти - коридор",
+	}
+	room.AddItem("на столе", Item{name: "конспекты"})
+	room.AddItem("на столе", Item{name: "ключи"})
+	room.AddItem("на стуле", Item{name: "рюкзак", isStorage: true})
+	room.AddRoutes([]string{"коридор"})
+
+	street := Room{
+		name:      "Улица",
+		entryText: "на улице весна. :routes",
+	}
+	street.AddRoutes([]string{"домой"})
+
+	home := Room{name: "домой", entryText: "дом милый дом. :routes"}
+	home.AddRoutes([]string{"коридор"})
+
+	gameEngine.AddRoom(kitchen)
+	gameEngine.AddRoom(corridor)
+	gameEngine.AddRoom(room)
+	gameEngine.AddRoom(street)
+
+	user := User{currentRoom: kitchen, inventory: make(map[string]Item)}
+	gameEngine.AddUser(user)
 }
 
 func handleCommand(command string) string {
-	/*
-		данная функция принимает команду от "пользователя"
-		и наверняка вызывает какой-то другой метод или функцию у "мира" - списка комнат
-	*/
-	return "not implemented"
+	return gameEngine.HandleCommand(command)
 }
