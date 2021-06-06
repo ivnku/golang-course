@@ -7,15 +7,15 @@ import (
 
 type Room struct {
 	name           string
-	entryText      string
+	entryText      string // text which displayed when user entered a room
 	lookAroundText string // basic formatted text for lookAround command
 	itemsList      map[string][]Item
 	itemsPlaces    []string
 	routes         []string
-	conditions     map[string]func(User, Room)
+	conditions     map[string]func(Player, Room)
 }
 
-func (room *Room) AddItem(place string, item Item) {
+func (room *Room) addItem(place string, item Item) {
 	if room.itemsList == nil && room.itemsPlaces == nil {
 		room.itemsList = make(map[string][]Item)
 		room.itemsPlaces = make([]string, 0)
@@ -33,22 +33,30 @@ func (room *Room) AddItem(place string, item Item) {
 	}
 }
 
-func (room *Room) AddRoutes(routes []string) {
+func (room *Room) addRoutes(routes []string) {
 	for _, route := range routes {
 		room.routes = append(room.routes, route)
 	}
 }
 
-func (room *Room) getLookAroundText() string {
+func getFormattedItemsAndRoutes(str string, room *Room) string {
 	itemsRegexp := regexp.MustCompile(`:items`)
 	routesRegexp := regexp.MustCompile(`:routes`)
 
 	itemsText := room.getItemsText()
 	routesText := room.getRoutesText()
 
-	result := itemsRegexp.ReplaceAll([]byte(room.lookAroundText), []byte(itemsText))
+	result := itemsRegexp.ReplaceAll([]byte(str), []byte(itemsText))
 	result = routesRegexp.ReplaceAll([]byte(result), []byte(routesText))
 	return string(result)
+}
+
+func (room *Room) getLookAroundText() string {
+	return getFormattedItemsAndRoutes(room.lookAroundText, room)
+}
+
+func (room *Room) getEntryText() string {
+	return getFormattedItemsAndRoutes(room.entryText, room)
 }
 
 func (room *Room) getItemsText() string {

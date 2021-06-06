@@ -1,8 +1,8 @@
 package main
 
 import (
-	"strings"
 	"os"
+	"strings"
 )
 
 type CommandHandler struct {
@@ -13,10 +13,13 @@ func NewCommandHandler() CommandHandler {
 	commands := make(map[string]func(ge *GameEngine, args ...string) string)
 
 	commands["осмотреться"] = func(ge *GameEngine, args ...string) string {
-		return ge.user.currentRoom.getLookAroundText()
+		return ge.player.currentRoom.getLookAroundText()
 	}
 
 	commands["идти"] = func(ge *GameEngine, args ...string) string {
+		if (len(args) == 0) {
+			return "такого пути нет"
+		}
 		return "Idti"
 	}
 
@@ -30,6 +33,10 @@ func NewCommandHandler() CommandHandler {
 
 	commands["надеть"] = func(ge *GameEngine, args ...string) string {
 		return "Nadet'"
+	}
+	
+	commands["гдея"] = func(ge *GameEngine, args ...string) string {
+		return ge.player.currentRoom.getEntryText()
 	}
 
 	commands["default"] = func(ge *GameEngine, args ...string) string {
