@@ -12,7 +12,7 @@ type Room struct {
 	itemsList      map[string][]Item
 	itemsPlaces    []string
 	routes         []string
-	conditions     map[string]func(Player, Room)
+	conditions     map[string]func(user Player) bool
 }
 
 func (room *Room) addItem(place string, item Item) {
@@ -22,13 +22,8 @@ func (room *Room) addItem(place string, item Item) {
 	}
 
 	room.itemsList[place] = append(room.itemsList[place], item)
-	isExist := false
-	for _, itemPlace := range room.itemsPlaces {
-		if place == itemPlace {
-			isExist = true
-		}
-	}
-	if !isExist {
+
+	if !containString(room.itemsPlaces, place) {
 		room.itemsPlaces = append(room.itemsPlaces, place)
 	}
 }

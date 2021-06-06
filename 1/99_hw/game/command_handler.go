@@ -20,7 +20,19 @@ func NewCommandHandler() CommandHandler {
 		if (len(args) == 0) {
 			return "такого пути нет"
 		}
-		return "Idti"
+		targetRoom := args[0]
+		if room, isExist := ge.world[targetRoom]; isExist && containString(ge.player.currentRoom.routes, targetRoom) {
+			// check if player can go to the room, if not - return message of restriction
+			for restrictiontext, checkFunc := range ge.player.currentRoom.conditions {
+				if !checkFunc(ge.player) {
+					return restrictiontext
+				}
+			}
+			ge.player.currentRoom = room
+			return room.getEntryText()
+		}
+	
+		return "невозможно пройти в " + targetRoom
 	}
 
 	commands["применить"] = func(ge *GameEngine, args ...string) string {

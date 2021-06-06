@@ -18,20 +18,21 @@ func main() {
 
 func initGame() {
 	kitchen := Room{
-		name:           "Кухня",
+		name:           "кухня",
+		entryText:      "кухня, ничего интересного. :routes",
 		lookAroundText: "ты находишься на кухне, :items, надо собрать рюкзак и идти в универ. :routes",
 	}
 	kitchen.addItem("на столе", Item{name: "чай"})
 	kitchen.addRoutes([]string{"коридор"})
 
 	corridor := Room{
-		name:      "Коридор",
+		name:      "коридор",
 		entryText: "ничего интересного. :routes",
 	}
 	corridor.addRoutes([]string{"комната", "кухня", "улица"})
 
 	room := Room{
-		name:           "Комната",
+		name:           "комната",
 		entryText:      "ты в своей комнате. можно пройти - коридор",
 		lookAroundText: "на столе: ключи, конспекты, на стуле: рюкзак. можно пройти - коридор",
 	}
@@ -41,7 +42,7 @@ func initGame() {
 	room.addRoutes([]string{"коридор"})
 
 	street := Room{
-		name:      "Улица",
+		name:      "улица",
 		entryText: "на улице весна. :routes",
 	}
 	street.addRoutes([]string{"домой"})
