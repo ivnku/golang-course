@@ -12,14 +12,16 @@ type Room struct {
 	itemsList      map[string][]Item
 	itemsPlaces    []string // necessary for saving the order of printing due to unordered nature of map
 	routes         []string
-	conditions     []Condition
+	conditions     map[string]*Condition
 }
 
 type Condition struct {
-	state    bool
-	success  string
-	fail     string
-	itemName string // if condition is depending on some item
+	state bool
+	check func(player Player, targetRoom Room, condition *Condition) (bool, string)
+}
+
+func (condition *Condition) checkCondition(player Player, targetRoom Room) (bool, string) {
+	return condition.check(player, targetRoom, condition)
 }
 
 func (room *Room) addItem(place string, item Item) {
@@ -104,7 +106,7 @@ func (room *Room) getEntryText(player Player) string {
 func (room *Room) getGoalsText(player Player) string {
 	goalsText := []string{}
 	for _, goal := range player.goals {
-		if (goal.check(&player)) {
+		if goal.check(&player) {
 			goalsText = append(goalsText, goal.text)
 		}
 	}
@@ -135,9 +137,9 @@ func (room *Room) getRoutesText() string {
 	return routesText
 }
 
-func (room *Room) addCondition(condition Condition) {
+func (room *Room) addCondition(name string, condition *Condition) {
 	if room.conditions == nil {
-		room.conditions = make([]Condition, 0)
+		room.conditions = make(map[string]*Condition)
 	}
-	room.conditions = append(room.conditions, condition)
+	room.conditions[name] = condition
 }

@@ -14,7 +14,7 @@ func NewCommandHandler() CommandHandler {
 
 	commands["осмотреться"] = func(ge *GameEngine, args ...string) string {
 		lookAroundText := ge.player.currentRoom.getLookAroundText(ge.player)
-		if (lookAroundText != "") {
+		if lookAroundText != "" {
 			return lookAroundText
 		} else {
 			return ge.player.currentRoom.getEntryText(ge.player)
@@ -29,9 +29,9 @@ func NewCommandHandler() CommandHandler {
 		isRoutePossible, _ := containString(ge.player.currentRoom.routes, targetRoom)
 		if room, isExist := ge.world[targetRoom]; isExist && isRoutePossible {
 			// check if player can go to the room, if not - return message of restriction
-			for _, condition := range room.conditions {
-				if !condition.state {
-					return condition.fail
+			for _, condition := range ge.player.currentRoom.conditions {
+				if state, failText := condition.checkCondition(ge.player, room); !state {
+					return failText
 				}
 			}
 			ge.player.currentRoom = room
@@ -51,16 +51,11 @@ func NewCommandHandler() CommandHandler {
 		}
 		affectedItem, isAffectedItemEmpty := ge.player.currentRoom.getItem(args[1])
 
-		if (isAffectedItemEmpty) {
-			for _, condition := range ge.player.currentRoom.conditions {
-				if condition.itemName == args[1] {
-					condition.state = !condition.state
-					if (condition.state) {
-						return condition.success
-					} else {
-						return condition.fail
-					}
-				}
+		if isAffectedItemEmpty {
+			_, isExist := ge.player.currentRoom.conditions[args[1]]
+			if isExist {
+				ge.player.currentRoom.conditions[args[1]].state = !ge.player.currentRoom.conditions[args[1]].state
+				return actionItem.affectOn[args[1]]
 			}
 			return "не к чему применить"
 		} else {
@@ -115,7 +110,6 @@ func NewCommandHandler() CommandHandler {
 	return CommandHandler{
 		commands: commands,
 	}
-
 }
 
 func (ch *CommandHandler) basicAct(command string, ge *GameEngine, args ...string) string {
