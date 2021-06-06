@@ -13,11 +13,11 @@ func NewCommandHandler() CommandHandler {
 	commands := make(map[string]func(ge *GameEngine, args ...string) string)
 
 	commands["осмотреться"] = func(ge *GameEngine, args ...string) string {
-		lookAroundText := ge.player.currentRoom.getLookAroundText()
+		lookAroundText := ge.player.currentRoom.getLookAroundText(ge.player)
 		if (lookAroundText != "") {
 			return lookAroundText
 		} else {
-			return ge.player.currentRoom.getEntryText()
+			return ge.player.currentRoom.getEntryText(ge.player)
 		}
 	}
 
@@ -29,20 +29,43 @@ func NewCommandHandler() CommandHandler {
 		isRoutePossible, _ := containString(ge.player.currentRoom.routes, targetRoom)
 		if room, isExist := ge.world[targetRoom]; isExist && isRoutePossible {
 			// check if player can go to the room, if not - return message of restriction
-			for restrictiontext, checkFunc := range room.conditions {
-				if !checkFunc(ge) {
-					return restrictiontext
+			for _, condition := range room.conditions {
+				if !condition.state {
+					return condition.fail
 				}
 			}
 			ge.player.currentRoom = room
-			return room.getEntryText()
+			return room.getEntryText(ge.player)
 		}
 
-		return "невозможно пройти в " + targetRoom
+		return "нет пути в " + targetRoom
 	}
 
 	commands["применить"] = func(ge *GameEngine, args ...string) string {
-		return "Primenit'"
+		if len(args) < 2 {
+			return "указаны не все аргументы"
+		}
+		actionItem, isActionItemExist := ge.player.inventory[args[0]]
+		if !isActionItemExist {
+			return "нет предмета в инвентаре - " + args[0]
+		}
+		affectedItem, isAffectedItemEmpty := ge.player.currentRoom.getItem(args[1])
+
+		if (isAffectedItemEmpty) {
+			for _, condition := range ge.player.currentRoom.conditions {
+				if condition.itemName == args[1] {
+					condition.state = !condition.state
+					if (condition.state) {
+						return condition.success
+					} else {
+						return condition.fail
+					}
+				}
+			}
+			return "не к чему применить"
+		} else {
+			return "применили " + actionItem.name + " к " + affectedItem.name
+		}
 	}
 
 	commands["взять"] = func(ge *GameEngine, args ...string) string {
@@ -82,7 +105,7 @@ func NewCommandHandler() CommandHandler {
 	}
 
 	commands["гдея"] = func(ge *GameEngine, args ...string) string {
-		return ge.player.currentRoom.getEntryText()
+		return ge.player.currentRoom.getEntryText(ge.player)
 	}
 
 	commands["default"] = func(ge *GameEngine, args ...string) string {

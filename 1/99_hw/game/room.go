@@ -12,7 +12,14 @@ type Room struct {
 	itemsList      map[string][]Item
 	itemsPlaces    []string // necessary for saving the order of printing due to unordered nature of map
 	routes         []string
-	conditions     map[string]func(ge *GameEngine) bool
+	conditions     []Condition
+}
+
+type Condition struct {
+	state    bool
+	success  string
+	fail     string
+	itemName string // if condition is depending on some item
 }
 
 func (room *Room) addItem(place string, item Item) {
@@ -36,7 +43,6 @@ func (room *Room) getItem(name string) (Item, bool) {
 			}
 		}
 	}
-
 	return Item{}, true
 }
 
@@ -68,24 +74,41 @@ func (room *Room) addRoutes(routes []string) {
 	}
 }
 
-func getFormattedItemsAndRoutes(str string, room *Room) string {
+func getFormattedText(str string, player Player) string {
 	itemsRegexp := regexp.MustCompile(`:items`)
 	routesRegexp := regexp.MustCompile(`:routes`)
+	goalsRegexp := regexp.MustCompile(`:goals`)
 
-	itemsText := room.getItemsText()
-	routesText := room.getRoutesText()
+	itemsText := player.currentRoom.getItemsText()
+	routesText := player.currentRoom.getRoutesText()
+	goalsText := player.currentRoom.getGoalsText(player)
+
+	if itemsText == "" {
+		itemsText = "пустая комната"
+	}
 
 	result := itemsRegexp.ReplaceAll([]byte(str), []byte(itemsText))
 	result = routesRegexp.ReplaceAll([]byte(result), []byte(routesText))
+	result = goalsRegexp.ReplaceAll([]byte(result), []byte(goalsText))
 	return string(result)
 }
 
-func (room *Room) getLookAroundText() string {
-	return getFormattedItemsAndRoutes(room.lookAroundText, room)
+func (room *Room) getLookAroundText(player Player) string {
+	return getFormattedText(room.lookAroundText, player)
 }
 
-func (room *Room) getEntryText() string {
-	return getFormattedItemsAndRoutes(room.entryText, room)
+func (room *Room) getEntryText(player Player) string {
+	return getFormattedText(room.entryText, player)
+}
+
+func (room *Room) getGoalsText(player Player) string {
+	goalsText := []string{}
+	for _, goal := range player.goals {
+		if (goal.check(&player)) {
+			goalsText = append(goalsText, goal.text)
+		}
+	}
+	return strings.Join(goalsText, " и ")
 }
 
 func (room *Room) getItemsText() string {
@@ -99,7 +122,6 @@ func (room *Room) getItemsText() string {
 		text += strings.Join(items, ", ")
 		itemsText = append(itemsText, text)
 	}
-
 	return strings.Join(itemsText, ", ")
 }
 
@@ -110,15 +132,12 @@ func (room *Room) getRoutesText() string {
 		routes = append(routes, route)
 	}
 	routesText += strings.Join(routes, ", ")
-
 	return routesText
 }
 
-// Add checks functions for special conditions before entering rooms.
-// e.g. you cannot access 'улица' if you don't have a key
-func (room *Room) addCondition(restrictionText string, checkFunc func(ge *GameEngine) bool) {
+func (room *Room) addCondition(condition Condition) {
 	if room.conditions == nil {
-		room.conditions = make(map[string]func(ge *GameEngine) bool)
+		room.conditions = make([]Condition, 0)
 	}
-	room.conditions[restrictionText] = checkFunc
+	room.conditions = append(room.conditions, condition)
 }
