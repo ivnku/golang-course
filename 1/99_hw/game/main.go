@@ -33,12 +33,12 @@ func initGame() {
 
 	room := Room{
 		name:           "комната",
-		entryText:      "ты в своей комнате. можно пройти - коридор",
-		lookAroundText: "на столе: ключи, конспекты, на стуле: рюкзак. можно пройти - коридор",
+		entryText:      "ты в своей комнате. :routes",
+		lookAroundText: ":items. :routes",
 	}
 	room.addItem("на столе", Item{name: "конспекты"})
 	room.addItem("на столе", Item{name: "ключи"})
-	room.addItem("на стуле", Item{name: "рюкзак", isStorage: true})
+	room.addItem("на стуле", Item{name: "рюкзак", isStorage: true, isWearable: true})
 	room.addRoutes([]string{"коридор"})
 
 	street := Room{
@@ -46,6 +46,9 @@ func initGame() {
 		entryText: "на улице весна. :routes",
 	}
 	street.addRoutes([]string{"домой"})
+	street.addCondition("дверь закрыта", func(ge *GameEngine) bool {
+		return ge.player.hasInventoryItem("ключ")
+	})
 
 	home := Room{name: "домой", entryText: "дом милый дом. :routes"}
 	home.addRoutes([]string{"коридор"})
@@ -54,6 +57,7 @@ func initGame() {
 	gameEngine.addRoom(corridor)
 	gameEngine.addRoom(room)
 	gameEngine.addRoom(street)
+	gameEngine.addRoom(home)
 
 	player := Player{currentRoom: kitchen, inventory: make(map[string]Item)}
 	gameEngine.addPlayer(player)

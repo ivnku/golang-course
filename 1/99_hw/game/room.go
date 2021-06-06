@@ -10,9 +10,9 @@ type Room struct {
 	entryText      string // text which displayed when user entered a room
 	lookAroundText string // basic formatted text for lookAround command
 	itemsList      map[string][]Item
-	itemsPlaces    []string
+	itemsPlaces    []string // necessary for saving the order of printing due to unordered nature of map
 	routes         []string
-	conditions     map[string]func(user Player) bool
+	conditions     map[string]func(ge *GameEngine) bool
 }
 
 func (room *Room) addItem(place string, item Item) {
@@ -23,8 +23,42 @@ func (room *Room) addItem(place string, item Item) {
 
 	room.itemsList[place] = append(room.itemsList[place], item)
 
-	if !containString(room.itemsPlaces, place) {
+	if isExist, _ := containString(room.itemsPlaces, place); !isExist {
 		room.itemsPlaces = append(room.itemsPlaces, place)
+	}
+}
+
+func (room *Room) getItem(name string) (Item, bool) {
+	for _, items := range room.itemsList {
+		for _, item := range items {
+			if item.name == name {
+				return item, false
+			}
+		}
+	}
+
+	return Item{}, true
+}
+
+func (room *Room) removeItem(name string) {
+finish:
+	for place, items := range room.itemsList {
+		for index, item := range items {
+			if item.name == name {
+				ret := make([]Item, 0)
+				if len(items) <= 1 {
+					for index, placeName := range room.itemsPlaces {
+						if place == placeName {
+							room.itemsPlaces = removeStringFromSlice(room.itemsPlaces, index)
+						}
+					}
+					room.itemsList[place] = ret
+				}
+				ret = append(ret, items[:index]...)
+				room.itemsList[place] = append(ret, items[index+1:]...)
+				break finish
+			}
+		}
 	}
 }
 
@@ -78,4 +112,13 @@ func (room *Room) getRoutesText() string {
 	routesText += strings.Join(routes, ", ")
 
 	return routesText
+}
+
+// Add checks functions for special conditions before entering rooms.
+// e.g. you cannot access 'улица' if you don't have a key
+func (room *Room) addCondition(restrictionText string, checkFunc func(ge *GameEngine) bool) {
+	if room.conditions == nil {
+		room.conditions = make(map[string]func(ge *GameEngine) bool)
+	}
+	room.conditions[restrictionText] = checkFunc
 }

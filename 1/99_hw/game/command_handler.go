@@ -13,25 +13,31 @@ func NewCommandHandler() CommandHandler {
 	commands := make(map[string]func(ge *GameEngine, args ...string) string)
 
 	commands["осмотреться"] = func(ge *GameEngine, args ...string) string {
-		return ge.player.currentRoom.getLookAroundText()
+		lookAroundText := ge.player.currentRoom.getLookAroundText()
+		if (lookAroundText != "") {
+			return lookAroundText
+		} else {
+			return ge.player.currentRoom.getEntryText()
+		}
 	}
 
 	commands["идти"] = func(ge *GameEngine, args ...string) string {
-		if (len(args) == 0) {
-			return "такого пути нет"
+		if len(args) == 0 {
+			return "путь не указан"
 		}
 		targetRoom := args[0]
-		if room, isExist := ge.world[targetRoom]; isExist && containString(ge.player.currentRoom.routes, targetRoom) {
+		isRoutePossible, _ := containString(ge.player.currentRoom.routes, targetRoom)
+		if room, isExist := ge.world[targetRoom]; isExist && isRoutePossible {
 			// check if player can go to the room, if not - return message of restriction
-			for restrictiontext, checkFunc := range ge.player.currentRoom.conditions {
-				if !checkFunc(ge.player) {
+			for restrictiontext, checkFunc := range room.conditions {
+				if !checkFunc(ge) {
 					return restrictiontext
 				}
 			}
 			ge.player.currentRoom = room
 			return room.getEntryText()
 		}
-	
+
 		return "невозможно пройти в " + targetRoom
 	}
 
@@ -40,13 +46,41 @@ func NewCommandHandler() CommandHandler {
 	}
 
 	commands["взять"] = func(ge *GameEngine, args ...string) string {
-		return "Vzyat'"
+		if len(args) == 0 {
+			return "предмет не указан"
+		}
+		itemName := args[0]
+		if item, isEmpty := ge.player.currentRoom.getItem(itemName); !isEmpty {
+			if ge.player.inventoryStorage.name != "" {
+				ge.player.addInventoryItem(item.name, item)
+				ge.player.currentRoom.removeItem(item.name)
+				return "предмет добавлен в инвентарь: " + item.name
+			} else {
+				return "некуда класть"
+			}
+		}
+		return "нет такого"
 	}
 
 	commands["надеть"] = func(ge *GameEngine, args ...string) string {
-		return "Nadet'"
+		if len(args) == 0 {
+			return "предмет не указан"
+		}
+		itemName := args[0]
+		if item, isEmpty := ge.player.currentRoom.getItem(itemName); !isEmpty {
+			if item.isWearable {
+				if item.isStorage {
+					ge.player.inventoryStorage = item
+				}
+				ge.player.currentRoom.removeItem(item.name)
+				return "вы надели: " + item.name
+			} else {
+				return "невозможно надеть " + item.name
+			}
+		}
+		return "нет такого"
 	}
-	
+
 	commands["гдея"] = func(ge *GameEngine, args ...string) string {
 		return ge.player.currentRoom.getEntryText()
 	}
@@ -66,7 +100,7 @@ func (ch *CommandHandler) basicAct(command string, ge *GameEngine, args ...strin
 	_, isExist := ch.commands[command]
 	if isExist {
 		return ch.commands[command](ge, args...)
-	} else if (command == "стоп" || command == "") {
+	} else if command == "стоп" || command == "" {
 		os.Exit(0)
 		return ""
 	} else {
