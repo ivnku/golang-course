@@ -1,29 +1,68 @@
 package main
 
-/*
-	код писать в этом файле
-	наверняка у вас будут какие-то структуры с методами, глобальные перменные ( тут можно ), функции
-*/
+import (
+	"bufio"
+	"fmt"
+	"os"
+)
+
+var gameEngine = NewGameEngine()
 
 func main() {
-	/*
-		в этой функции можно ничего не писать
-		но тогда у вас не будет работать через go run main.go
-		очень круто будет сделать построчный ввод команд тут, хотя это и не требуется по заданию
-	*/
+	initGame()
+	input := bufio.NewScanner(os.Stdin)
+	for input.Scan() {
+		fmt.Println(handleCommand(input.Text()))
+	}
 }
 
 func initGame() {
-	/*
-		эта функция инициализирует игровой мир - все команты
-		если что-то было - оно корректно перезатирается
-	*/
+	kitchen := &Room{name: "кухня", entryText: "кухня, ничего интересного. :routes", lookAroundText: "ты находишься на кухне, :items, надо :goals. :routes"}
+	kitchen.addItem("на столе", Item{name: "чай"})
+	kitchen.addRoutes([]string{"коридор"})
+
+	corridor := &Room{name: "коридор", entryText: "ничего интересного. :routes"}
+	corridor.addRoutes([]string{"кухня", "комната", "улица"})
+	corridor.addCondition("дверь", &Condition{
+		state: false,
+		check: func(player Player, targetRoom Room, condition *Condition) (bool, string) {
+			if targetRoom.name == "улица" && !condition.state {
+				return false, "дверь закрыта"
+			}
+			return true, ""
+		},
+	})
+
+	room := &Room{name: "комната", entryText: "ты в своей комнате. :routes", lookAroundText: ":items. :routes"}
+	room.addItem("на столе", Item{name: "ключи", affectOn: map[string]string{"дверь": "дверь открыта"}})
+	room.addItem("на столе", Item{name: "конспекты"})
+	room.addItem("на стуле", Item{name: "рюкзак", isStorage: true, isWearable: true})
+	room.addRoutes([]string{"коридор"})
+
+	street := &Room{name: "улица", entryText: "на улице весна. :routes"}
+	street.addRoutes([]string{"домой"})
+
+	home := &Room{name: "домой", entryText: "дом милый дом. :routes"}
+	home.addRoutes([]string{"коридор"})
+
+	gameEngine.addRoom(kitchen)
+	gameEngine.addRoom(corridor)
+	gameEngine.addRoom(room)
+	gameEngine.addRoom(street)
+	gameEngine.addRoom(home)
+
+	player := &Player{currentRoom: kitchen, inventory: make(map[string]Item)}
+	player.goals = []Goal{
+		{text: "собрать рюкзак", check: func(player *Player) bool {
+			return player.inventoryStorage.name == "" && len(player.inventory) == 0
+		}},
+		{text: "идти в универ", check: func(player *Player) bool {
+			return true
+		}},
+	}
+	gameEngine.addPlayer(player)
 }
 
 func handleCommand(command string) string {
-	/*
-		данная функция принимает команду от "пользователя"
-		и наверняка вызывает какой-то другой метод или функцию у "мира" - списка комнат
-	*/
-	return "not implemented"
+	return gameEngine.HandleCommand(command)
 }
