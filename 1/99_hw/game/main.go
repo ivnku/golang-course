@@ -26,7 +26,7 @@ func initGame() {
 	corridor.addCondition("дверь", &Condition{
 		state: false,
 		check: func(player Player, targetRoom Room, condition *Condition) (bool, string) {
-			if targetRoom.name == "улица" && condition.state != true {
+			if targetRoom.name == "улица" && !condition.state {
 				return false, "дверь закрыта"
 			}
 			return true, ""
