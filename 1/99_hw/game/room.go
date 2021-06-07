@@ -78,7 +78,7 @@ func (room *Room) addRoutes(routes []string) {
 
 func getFormattedText(str string, player Player) string {
 	itemsText := player.currentRoom.getItemsText()
-	
+
 	if itemsText == "" {
 		itemsText = "пустая комната"
 	}
