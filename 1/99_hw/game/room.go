@@ -1,7 +1,6 @@
 package main
 
 import (
-	"regexp"
 	"strings"
 )
 
@@ -52,19 +51,21 @@ func (room *Room) removeItem(name string) {
 finish:
 	for place, items := range room.itemsList {
 		for index, item := range items {
-			if item.name == name {
-				ret := make([]Item, 0)
-				if len(items) <= 1 {
-					isExist, placeIndex := containString(room.itemsPlaces, place)
-					if isExist {
-						room.itemsPlaces = removeStringFromSlice(room.itemsPlaces, placeIndex)
-					}
-					room.itemsList[place] = ret
+			if item.name != name {
+				continue
+			}
+			ret := make([]Item, 0)
+			if len(items) <= 1 { // if this is the last item - remove key from the map and remove itemsPlaces item
+				isExist, placeIndex := containString(room.itemsPlaces, place)
+				if isExist {
+					room.itemsPlaces = removeStringFromSlice(room.itemsPlaces, placeIndex)
+					delete(room.itemsList, place)
 				}
+			} else {
 				ret = append(ret, items[:index]...)
 				room.itemsList[place] = append(ret, items[index+1:]...)
-				break finish
 			}
+			break finish
 		}
 	}
 }
@@ -76,22 +77,17 @@ func (room *Room) addRoutes(routes []string) {
 }
 
 func getFormattedText(str string, player Player) string {
-	itemsRegexp := regexp.MustCompile(`:items`)
-	routesRegexp := regexp.MustCompile(`:routes`)
-	goalsRegexp := regexp.MustCompile(`:goals`)
-
 	itemsText := player.currentRoom.getItemsText()
-	routesText := player.currentRoom.getRoutesText()
-	goalsText := player.currentRoom.getGoalsText(player)
-
+	
 	if itemsText == "" {
 		itemsText = "пустая комната"
 	}
 
-	result := itemsRegexp.ReplaceAll([]byte(str), []byte(itemsText))
-	result = routesRegexp.ReplaceAll([]byte(result), []byte(routesText))
-	result = goalsRegexp.ReplaceAll([]byte(result), []byte(goalsText))
-	return string(result)
+	result := strings.Replace(str, ":items", itemsText, -1)
+	result = strings.Replace(result, ":routes", player.currentRoom.getRoutesText(), -1)
+	result = strings.Replace(result, ":goals", player.currentRoom.getGoalsText(player), -1)
+
+	return result
 }
 
 func (room *Room) getLookAroundText(player Player) string {

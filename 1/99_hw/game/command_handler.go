@@ -13,11 +13,11 @@ func NewCommandHandler() CommandHandler {
 	commands := make(map[string]func(ge *GameEngine, args ...string) string)
 
 	commands["осмотреться"] = func(ge *GameEngine, args ...string) string {
-		lookAroundText := ge.player.currentRoom.getLookAroundText(ge.player)
+		lookAroundText := ge.player.currentRoom.getLookAroundText(*ge.player)
 		if lookAroundText != "" {
 			return lookAroundText
 		} else {
-			return ge.player.currentRoom.getEntryText(ge.player)
+			return ge.player.currentRoom.getEntryText(*ge.player)
 		}
 	}
 
@@ -30,12 +30,12 @@ func NewCommandHandler() CommandHandler {
 		if room, isExist := ge.world[targetRoom]; isExist && isRoutePossible {
 			// check if player can go to the room, if not - return message of restriction
 			for _, condition := range ge.player.currentRoom.conditions {
-				if state, failText := condition.checkCondition(ge.player, room); !state {
+				if state, failText := condition.checkCondition(*ge.player, *room); !state {
 					return failText
 				}
 			}
 			ge.player.currentRoom = room
-			return room.getEntryText(ge.player)
+			return room.getEntryText(*ge.player)
 		}
 
 		return "нет пути в " + targetRoom
@@ -100,7 +100,7 @@ func NewCommandHandler() CommandHandler {
 	}
 
 	commands["гдея"] = func(ge *GameEngine, args ...string) string {
-		return ge.player.currentRoom.getEntryText(ge.player)
+		return ge.player.currentRoom.getEntryText(*ge.player)
 	}
 
 	commands["default"] = func(ge *GameEngine, args ...string) string {

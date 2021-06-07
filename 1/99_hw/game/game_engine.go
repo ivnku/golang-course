@@ -3,20 +3,20 @@ package main
 import "strings"
 
 type GameEngine struct {
-	player         Player
-	world          map[string]Room
+	player         *Player
+	world          map[string]*Room
 	commandHandler CommandHandler
 }
 
 func NewGameEngine() *GameEngine {
 	ge := new(GameEngine)
-	ge.player = Player{}
-	ge.world = make(map[string]Room)
+	ge.player = &Player{}
+	ge.world = make(map[string]*Room)
 	ge.commandHandler = NewCommandHandler()
 	return ge
 }
 
-func (ge *GameEngine) addRoom(room Room) {
+func (ge *GameEngine) addRoom(room *Room) {
 	ge.world[room.name] = room
 }
 
@@ -24,7 +24,7 @@ func (ge *GameEngine) addCommand(name string, foo func(ge *GameEngine, args ...s
 	ge.commandHandler.commands[name] = foo
 }
 
-func (ge *GameEngine) addPlayer(player Player) {
+func (ge *GameEngine) addPlayer(player *Player) {
 	ge.player = player
 }
 

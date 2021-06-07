@@ -17,11 +17,11 @@ func main() {
 }
 
 func initGame() {
-	kitchen := Room{name: "кухня", entryText: "кухня, ничего интересного. :routes", lookAroundText: "ты находишься на кухне, :items, надо :goals. :routes"}
+	kitchen := &Room{name: "кухня", entryText: "кухня, ничего интересного. :routes", lookAroundText: "ты находишься на кухне, :items, надо :goals. :routes"}
 	kitchen.addItem("на столе", Item{name: "чай"})
 	kitchen.addRoutes([]string{"коридор"})
 
-	corridor := Room{name: "коридор", entryText: "ничего интересного. :routes"}
+	corridor := &Room{name: "коридор", entryText: "ничего интересного. :routes"}
 	corridor.addRoutes([]string{"кухня", "комната", "улица"})
 	corridor.addCondition("дверь", &Condition{
 		state: false,
@@ -33,16 +33,16 @@ func initGame() {
 		},
 	})
 
-	room := Room{name: "комната", entryText: "ты в своей комнате. :routes", lookAroundText: ":items. :routes"}
+	room := &Room{name: "комната", entryText: "ты в своей комнате. :routes", lookAroundText: ":items. :routes"}
 	room.addItem("на столе", Item{name: "ключи", affectOn: map[string]string{"дверь": "дверь открыта"}})
 	room.addItem("на столе", Item{name: "конспекты"})
 	room.addItem("на стуле", Item{name: "рюкзак", isStorage: true, isWearable: true})
 	room.addRoutes([]string{"коридор"})
 
-	street := Room{name: "улица", entryText: "на улице весна. :routes"}
+	street := &Room{name: "улица", entryText: "на улице весна. :routes"}
 	street.addRoutes([]string{"домой"})
 
-	home := Room{name: "домой", entryText: "дом милый дом. :routes"}
+	home := &Room{name: "домой", entryText: "дом милый дом. :routes"}
 	home.addRoutes([]string{"коридор"})
 
 	gameEngine.addRoom(kitchen)
@@ -51,7 +51,7 @@ func initGame() {
 	gameEngine.addRoom(street)
 	gameEngine.addRoom(home)
 
-	player := Player{currentRoom: kitchen, inventory: make(map[string]Item)}
+	player := &Player{currentRoom: kitchen, inventory: make(map[string]Item)}
 	player.goals = []Goal{
 		{text: "собрать рюкзак", check: func(player *Player) bool {
 			return player.inventoryStorage.name == "" && len(player.inventory) == 0
