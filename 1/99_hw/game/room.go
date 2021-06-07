@@ -55,10 +55,9 @@ finish:
 			if item.name == name {
 				ret := make([]Item, 0)
 				if len(items) <= 1 {
-					for index, placeName := range room.itemsPlaces {
-						if place == placeName {
-							room.itemsPlaces = removeStringFromSlice(room.itemsPlaces, index)
-						}
+					isExist, placeIndex := containString(room.itemsPlaces, place)
+					if isExist {
+						room.itemsPlaces = removeStringFromSlice(room.itemsPlaces, placeIndex)
 					}
 					room.itemsList[place] = ret
 				}
