@@ -10,101 +10,65 @@ import (
 	"time"
 )
 
-var wg = &sync.WaitGroup{}
-
 func ExecutePipeline(jobs ...job) {
 	channelsPool := make([]chan interface{}, 0)
 	for i := 0; i < len(jobs)-1; i++ {
 		channelsPool = append(channelsPool, make(chan interface{}))
 	}
 
+	wg := &sync.WaitGroup{}
+
 	for i, jobFunc := range jobs {
 		if i == 0 { // the first one job
 			in := make(chan interface{})
 			out := channelsPool[0]
-			go jobFunc(in, out)
+			wg.Add(1)
+			go func() {
+				jobFunc(in, out)
+				defer wg.Done()
+				defer close(out)
+			}()
 		} else if i == len(jobs)-1 { // the last one job
 			in := channelsPool[len(channelsPool)-1]
-			out := channelsPool[len(channelsPool)-1]
-			go jobFunc(in, out)
+			out := make(chan interface{})
+			wg.Add(1)
+			go func() {
+				jobFunc(in, out)
+				defer wg.Done()
+				defer close(in)
+			}()
 		} else { // all the jobs in between
 			in := channelsPool[i-1]
 			out := channelsPool[i]
 			wg.Add(1)
-			go jobFunc(in, out)
+			go func() {
+				jobFunc(in, out)
+				defer wg.Done()
+				defer close(out)
+			}()
 		}
 	}
-	wg.Wait()
-	//fmt.Scanln()
+	defer wg.Wait()
 }
 
 func SingleHash(in, out chan interface{}) {
-	result := ""
 	for rawData := range in {
 		data, ok := rawData.(int)
 		if !ok {
 			fmt.Print("cant convert data to int in SingleHash function")
 		}
 		stringData := strconv.Itoa(data)
-
-		crcFromData := make(chan string)
-		md5FromData := make(chan string)
-		crcFromMd5 := make(chan string)
-
-		wg.Add(2)
-		go func(out chan string) {
-			out <- DataSignerCrc32(stringData)
-			wg.Done()
-		}(crcFromData)
-
-		go func(in, out chan string) {
-			md5Str := <-in
-			out <- DataSignerCrc32(md5Str)
-			wg.Done()
-		}(md5FromData, crcFromMd5)
-
-		md5FromData <- DataSignerMd5(stringData)
-
-		crcFromDataStr := <-crcFromData
-		crcFromMd5Str := <-crcFromMd5
-
-		result = crcFromDataStr + "~" + crcFromMd5Str
-
-		fmt.Printf("Hello from single hash %v \n", result)
-		out <- result
-		wg.Done()
+		out <- stringData
 	}
 }
 
 func MultiHash(in, out chan interface{}) {
-	result := ""
 	for rawData := range in {
 		singleHashResult, ok := rawData.(string)
 		if !ok {
 			fmt.Print("cant convert data to string in MultiHash function")
 		}
-		channelsPool := []chan string{
-			make(chan string),
-			make(chan string),
-			make(chan string),
-			make(chan string),
-			make(chan string),
-			make(chan string),
-		}
-
-		wg.Add(6)
-		for i := 0; i < 6; i++ {
-			go func(out chan string) {
-				out <- DataSignerCrc32(strconv.Itoa(i) + singleHashResult)
-				wg.Done()
-			}(channelsPool[i])
-		}
-		for i := range channelsPool {
-			result += <- channelsPool[i]
-		}
-		fmt.Printf("Hello from multi hash %v; singlehash result: %v \n", result, singleHashResult)
-		out <- result
-		wg.Done()
+		out <- singleHashResult + "_this is multihash"
 	}
 }
 
@@ -116,11 +80,10 @@ func CombineResults(in, out chan interface{}) {
 		if !ok {
 			fmt.Print("cant convert data to string in CombineResult function")
 		}
-		combinedResult += "_" + result
+		combinedResult += result + "_this is combine results"
 		fmt.Printf("Hello from Combine %v \n", result)
-		out <- result
+		out <- combinedResult
 	}
-	wg.Done()
 }
 
 func main() {
@@ -175,7 +138,7 @@ func main() {
 	}
 
 	//inputData := []int{0, 1, 1, 2, 3, 5, 8}
-	inputData := []int{0, 1, 1}
+	inputData := []int{0, 1}
 
 	hashSignJobs := []job{
 		job(func(in, out chan interface{}) {
