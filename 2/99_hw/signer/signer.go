@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"hash/crc32"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -12,78 +13,135 @@ import (
 
 func ExecutePipeline(jobs ...job) {
 	channelsPool := make([]chan interface{}, 0)
-	for i := 0; i < len(jobs)-1; i++ {
+	for i := 0; i < len(jobs)+1; i++ {
 		channelsPool = append(channelsPool, make(chan interface{}))
 	}
 
 	wg := &sync.WaitGroup{}
 
 	for i, jobFunc := range jobs {
-		if i == 0 { // the first one job
-			in := make(chan interface{})
-			out := channelsPool[0]
-			wg.Add(1)
-			go func() {
-				jobFunc(in, out)
-				defer wg.Done()
-				defer close(out)
-			}()
-		} else if i == len(jobs)-1 { // the last one job
-			in := channelsPool[len(channelsPool)-1]
-			out := make(chan interface{})
-			wg.Add(1)
-			go func() {
-				jobFunc(in, out)
-				defer wg.Done()
-				defer close(in)
-			}()
-		} else { // all the jobs in between
-			in := channelsPool[i-1]
-			out := channelsPool[i]
-			wg.Add(1)
-			go func() {
-				jobFunc(in, out)
-				defer wg.Done()
-				defer close(out)
-			}()
-		}
+		wg.Add(1)
+		go func(in, out chan interface{}, jobFunc job, wg *sync.WaitGroup) {
+			jobFunc(in, out)
+			defer wg.Done()
+			defer close(out)
+		}(channelsPool[i], channelsPool[i+1], jobFunc, wg)
 	}
 	defer wg.Wait()
 }
 
 func SingleHash(in, out chan interface{}) {
+	wg := &sync.WaitGroup{}
+
 	for rawData := range in {
 		data, ok := rawData.(int)
 		if !ok {
 			fmt.Print("cant convert data to int in SingleHash function")
 		}
 		stringData := strconv.Itoa(data)
-		out <- stringData
+
+		crcChannel := make(chan string)
+		crcChannelWithMd5 := make(chan string)
+
+		result := calcSingleHash(stringData, crcChannel, crcChannelWithMd5, wg)
+
+		out <- result
 	}
+
+}
+
+/*
+ Calculate two separate crc32 hashes and concatenate
+ them with '~' sign. The result is SingleHash value
+*/
+func calcSingleHash(data string, crcChannel, crcChannelWithMd5 chan string, wg *sync.WaitGroup) string {
+	md5Hash := DataSignerMd5(data)
+
+	wg.Add(2)
+	go func(data string, channel chan string, wg *sync.WaitGroup) {
+		result := DataSignerCrc32(data)
+		channel <- result
+		defer wg.Done()
+		defer close(channel)
+	}(data, crcChannel, wg)
+
+	go func(data string, channel chan string, wg *sync.WaitGroup) {
+		result := DataSignerCrc32(data)
+		channel <- result
+		defer wg.Done()
+		defer close(channel)
+	}(md5Hash, crcChannelWithMd5, wg)
+
+	leftSide := <-crcChannel
+	rightSide := <-crcChannelWithMd5
+	result := leftSide + "~" + rightSide
+
+	wg.Wait()
+
+	return result
 }
 
 func MultiHash(in, out chan interface{}) {
+	wg := &sync.WaitGroup{}
+	wgForClosingChannel := &sync.WaitGroup{}
+
 	for rawData := range in {
 		singleHashResult, ok := rawData.(string)
 		if !ok {
 			fmt.Print("cant convert data to string in MultiHash function")
 		}
-		out <- singleHashResult + "_this is multihash"
+
+		channel := make(chan struct{index int; hash string})
+		wg.Add(6)
+		wgForClosingChannel.Add(6)
+		for i := 0; i < 6; i++ {
+			th := strconv.Itoa(i)
+			go func(data string, channel chan struct{index int; hash string}, wg *sync.WaitGroup, wgForClosingChannel *sync.WaitGroup, index int) {
+				result := DataSignerCrc32(data)
+				resultStruct := struct {
+					index int
+					hash string
+				}{
+					index: index,
+					hash: result,
+				}
+				channel <- resultStruct
+				defer wg.Done()
+				defer wgForClosingChannel.Done()
+			}(th+singleHashResult, channel, wg, wgForClosingChannel, i)
+		}
+		go func(wgForClosingChannel *sync.WaitGroup, channel chan struct{index int; hash string}) {
+			wgForClosingChannel.Wait()
+			close(channel)
+		}(wgForClosingChannel, channel)
+
+		resultMap := make(map[int]string)
+		for thHash := range channel {
+			resultMap[thHash.index] = thHash.hash
+		}
+
+		for i := 0; i < 6; i++ {
+			out <- resultMap[i]
+		}
+
+		wg.Wait()
 	}
 }
 
-var combinedResult = ""
-
 func CombineResults(in, out chan interface{}) {
+	combinedResult := make([]string, 0)
+
 	for rawData := range in {
-		result, ok := rawData.(string)
+		data, ok := rawData.(string)
 		if !ok {
 			fmt.Print("cant convert data to string in CombineResult function")
 		}
-		combinedResult += result + "_this is combine results"
-		fmt.Printf("Hello from Combine %v \n", result)
-		out <- combinedResult
+		fmt.Printf("Combined results are %v \n", data)
+		combinedResult = append(combinedResult, data)
 	}
+
+	strings.Join(combinedResult, "_")
+	out <- combinedResult
 }
 
 func main() {
