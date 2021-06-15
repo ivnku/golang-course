@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"fmt"
 	"hash/crc32"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -120,9 +121,11 @@ func MultiHash(in, out chan interface{}) {
 			resultMap[thHash.index] = thHash.hash
 		}
 
+		result := ""
 		for i := 0; i < 6; i++ {
-			out <- resultMap[i]
+			result += resultMap[i]
 		}
+		out <- result
 
 		wg.Wait()
 	}
@@ -136,12 +139,13 @@ func CombineResults(in, out chan interface{}) {
 		if !ok {
 			fmt.Print("cant convert data to string in CombineResult function")
 		}
-		fmt.Printf("Combined results are %v \n", data)
 		combinedResult = append(combinedResult, data)
 	}
 
-	strings.Join(combinedResult, "_")
-	out <- combinedResult
+	sort.Strings(combinedResult)
+	result := strings.Join(combinedResult, "_")
+
+	out <- result
 }
 
 func main() {
@@ -195,8 +199,8 @@ func main() {
 		return dataHash
 	}
 
-	//inputData := []int{0, 1, 1, 2, 3, 5, 8}
-	inputData := []int{0, 1}
+	inputData := []int{0, 1, 1, 2, 3, 5, 8}
+	//inputData := []int{0, 1}
 
 	hashSignJobs := []job{
 		job(func(in, out chan interface{}) {
