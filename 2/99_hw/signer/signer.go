@@ -28,7 +28,7 @@ func ExecutePipeline(jobs ...job) {
 			defer close(out)
 		}(channelsPool[i], channelsPool[i+1], jobFunc, wg)
 	}
-	defer wg.Wait()
+	wg.Wait()
 }
 
 func SingleHash(in, out chan interface{}) {
@@ -41,22 +41,26 @@ func SingleHash(in, out chan interface{}) {
 		}
 		stringData := strconv.Itoa(data)
 
-		crcChannel := make(chan string)
-		crcChannelWithMd5 := make(chan string)
 
-		result := calcSingleHash(stringData, crcChannel, crcChannelWithMd5, wg)
-
-		out <- result
+		wg.Add(1)
+		md5Hash := DataSignerMd5(stringData)
+		go func(wg *sync.WaitGroup, stringData, md5Hash string, out chan interface{}) {
+			calcSingleHash(stringData, md5Hash, out)
+			defer wg.Done()
+		}(wg, stringData, md5Hash, out)
 	}
-
+	wg.Wait()
 }
 
 /*
  Calculate two separate crc32 hashes and concatenate
  them with '~' sign. The result is SingleHash value
 */
-func calcSingleHash(data string, crcChannel, crcChannelWithMd5 chan string, wg *sync.WaitGroup) string {
-	md5Hash := DataSignerMd5(data)
+func calcSingleHash(data, md5Hash string, out chan interface{}) {
+	wg := &sync.WaitGroup{}
+
+	crcChannel := make(chan string)
+	crcChannelWithMd5 := make(chan string)
 
 	wg.Add(2)
 	go func(data string, channel chan string, wg *sync.WaitGroup) {
@@ -73,17 +77,13 @@ func calcSingleHash(data string, crcChannel, crcChannelWithMd5 chan string, wg *
 		defer close(channel)
 	}(md5Hash, crcChannelWithMd5, wg)
 
-	leftSide := <-crcChannel
-	rightSide := <-crcChannelWithMd5
-	result := leftSide + "~" + rightSide
+	result := <-crcChannel + "~" + <-crcChannelWithMd5
 
+	out <- result
 	wg.Wait()
-
-	return result
 }
 
 func MultiHash(in, out chan interface{}) {
-	wg := &sync.WaitGroup{}
 	wgForClosingChannel := &sync.WaitGroup{}
 
 	for rawData := range in {
@@ -93,11 +93,10 @@ func MultiHash(in, out chan interface{}) {
 		}
 
 		channel := make(chan struct{index int; hash string})
-		wg.Add(6)
 		wgForClosingChannel.Add(6)
 		for i := 0; i < 6; i++ {
 			th := strconv.Itoa(i)
-			go func(data string, channel chan struct{index int; hash string}, wg *sync.WaitGroup, wgForClosingChannel *sync.WaitGroup, index int) {
+			go func(data string, channel chan struct{index int; hash string}, wgForClosingChannel *sync.WaitGroup, index int) {
 				result := DataSignerCrc32(data)
 				resultStruct := struct {
 					index int
@@ -107,9 +106,8 @@ func MultiHash(in, out chan interface{}) {
 					hash: result,
 				}
 				channel <- resultStruct
-				defer wg.Done()
 				defer wgForClosingChannel.Done()
-			}(th+singleHashResult, channel, wg, wgForClosingChannel, i)
+			}(th+singleHashResult, channel, wgForClosingChannel, i)
 		}
 		go func(wgForClosingChannel *sync.WaitGroup, channel chan struct{index int; hash string}) {
 			wgForClosingChannel.Wait()
@@ -126,8 +124,6 @@ func MultiHash(in, out chan interface{}) {
 			result += resultMap[i]
 		}
 		out <- result
-
-		wg.Wait()
 	}
 }
 
