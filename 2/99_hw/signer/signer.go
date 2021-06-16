@@ -41,7 +41,6 @@ func SingleHash(in, out chan interface{}) {
 		}
 		stringData := strconv.Itoa(data)
 
-
 		wg.Add(1)
 		md5Hash := DataSignerMd5(stringData)
 		go func(wg *sync.WaitGroup, stringData, md5Hash string, out chan interface{}) {
@@ -92,24 +91,26 @@ func MultiHash(in, out chan interface{}) {
 			fmt.Print("cant convert data to string in MultiHash function")
 		}
 
-		channel := make(chan struct{index int; hash string})
+		type thStruct struct {
+			index int
+			hash  string
+		}
+
+		channel := make(chan thStruct)
 		wgForClosingChannel.Add(6)
 		for i := 0; i < 6; i++ {
 			th := strconv.Itoa(i)
-			go func(data string, channel chan struct{index int; hash string}, wgForClosingChannel *sync.WaitGroup, index int) {
+			go func(data string, channel chan thStruct, wgForClosingChannel *sync.WaitGroup, index int) {
 				result := DataSignerCrc32(data)
-				resultStruct := struct {
-					index int
-					hash string
-				}{
+				resultStruct := thStruct{
 					index: index,
-					hash: result,
+					hash:  result,
 				}
 				channel <- resultStruct
 				defer wgForClosingChannel.Done()
 			}(th+singleHashResult, channel, wgForClosingChannel, i)
 		}
-		go func(wgForClosingChannel *sync.WaitGroup, channel chan struct{index int; hash string}) {
+		go func(wgForClosingChannel *sync.WaitGroup, channel chan thStruct) {
 			wgForClosingChannel.Wait()
 			close(channel)
 		}(wgForClosingChannel, channel)
