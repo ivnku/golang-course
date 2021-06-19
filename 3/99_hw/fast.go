@@ -2,14 +2,18 @@ package main
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"strings"
 )
 
-// вам надо написать более быструю оптимальную этой функции
+type User struct {
+	Name     string   `json:"name"`
+	Email    string   `json:"email"`
+	Browsers []string `json:"browsers"`
+}
+
 func FastSearch(out io.Writer) {
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -20,18 +24,22 @@ func FastSearch(out io.Writer) {
 	uniqueBrowsers := 0
 	foundUsers := ""
 
-	scanner := bufio.NewScanner(file)
+	reader := bufio.NewReader(file)
 
-	users := make([]map[string]interface{}, 0)
-	for scanner.Scan() {
-		line := scanner.Text()
-		user := make(map[string]interface{}, 10)
-		// fmt.Printf("%v %v\n", err, line)
-		err := json.Unmarshal([]byte(line), &user)
+	users := make([]User, 0, 1000)
+	for {
+		line, err := reader.ReadSlice('\n')
+		if err != nil {
+			break
+		}
+		user := &User{}
+
+		err = user.UnmarshalJSON(line)
+
 		if err != nil {
 			panic(err)
 		}
-		users = append(users, user)
+		users = append(users, *user)
 	}
 
 	for i, user := range users {
@@ -39,16 +47,7 @@ func FastSearch(out io.Writer) {
 		isAndroid := false
 		isMSIE := false
 
-		browsers, ok := user["browsers"].([]interface{})
-		if !ok {
-			continue
-		}
-
-		for _, browserRaw := range browsers {
-			browser, ok := browserRaw.(string)
-			if !ok {
-				continue
-			}
+		for _, browser := range user.Browsers {
 			if ok := strings.Contains(browser, "Android"); ok {
 				isAndroid = true
 			} else if ok = strings.Contains(browser, "MSIE"); ok {
@@ -74,8 +73,7 @@ func FastSearch(out io.Writer) {
 		}
 
 		// log.Println("Android and MSIE user:", user["name"], user["email"])
-		email := strings.Replace(user["email"].(string), "@", " [at] ", 1)
-		foundUsers += fmt.Sprintf("[%d] %s <%s>\n", i, user["name"], email)
+		foundUsers += fmt.Sprintf("[%d] %s <%s>\n", i, user.Name, strings.Replace(user.Email, "@", " [at] ", 1))
 	}
 
 	fmt.Fprintln(out, "found users:\n"+foundUsers)
