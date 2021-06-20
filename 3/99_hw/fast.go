@@ -21,7 +21,6 @@ func FastSearch(out io.Writer) {
 	}
 
 	seenBrowsers := make(map[string]bool, 100)
-	uniqueBrowsers := 0
 	foundUsers := make([]string, 0, 100)
 
 	reader := bufio.NewReader(file)
@@ -57,7 +56,6 @@ func FastSearch(out io.Writer) {
 
 			if !isSeenBefore {
 				seenBrowsers[browser] = true
-				uniqueBrowsers++
 			}
 		}
 
