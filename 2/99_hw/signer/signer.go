@@ -59,17 +59,9 @@ func SingleHash(in, out chan interface{}) {
 func calcSingleHash(data, md5Hash string, out chan interface{}) {
 	wg := &sync.WaitGroup{}
 
-	crcChannel := make(chan string)
 	crcChannelWithMd5 := make(chan string)
 
-	wg.Add(2)
-	go func(data string, channel chan string, wg *sync.WaitGroup) {
-		result := DataSignerCrc32(data)
-		channel <- result
-		defer wg.Done()
-		defer close(channel)
-	}(data, crcChannel, wg)
-
+	wg.Add(1)
 	go func(data string, channel chan string, wg *sync.WaitGroup) {
 		result := DataSignerCrc32(data)
 		channel <- result
@@ -77,7 +69,7 @@ func calcSingleHash(data, md5Hash string, out chan interface{}) {
 		defer close(channel)
 	}(md5Hash, crcChannelWithMd5, wg)
 
-	result := <-crcChannel + "~" + <-crcChannelWithMd5
+	result := DataSignerCrc32(data) + "~" + <-crcChannelWithMd5
 
 	out <- result
 	wg.Wait()
