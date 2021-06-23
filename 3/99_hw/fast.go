@@ -21,9 +21,10 @@ func FastSearch(out io.Writer) {
 	}
 
 	seenBrowsers := make(map[string]bool, 100)
-	foundUsers := make([]string, 0, 100)
 
 	reader := bufio.NewReader(file)
+
+	fmt.Fprintf(out, "found users:\n")
 
 	i := -1
 	for {
@@ -63,9 +64,8 @@ func FastSearch(out io.Writer) {
 			continue
 		}
 
-		foundUsers = append(foundUsers, fmt.Sprintf("[%d] %s <%s>\n", i, user.Name, strings.Replace(user.Email, "@", " [at] ", 1)))
+		fmt.Fprintf(out, "[%d] %s <%s>\n", i, user.Name, strings.Replace(user.Email, "@", " [at] ", 1))
 	}
 
-	fmt.Fprintln(out, "found users:\n"+strings.Join(foundUsers, ""))
-	fmt.Fprintln(out, "Total unique browsers", len(seenBrowsers))
+	fmt.Fprintln(out, "\nTotal unique browsers", len(seenBrowsers))
 }
