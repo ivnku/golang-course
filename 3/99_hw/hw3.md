@@ -38,7 +38,7 @@ ok coursera/hw3 3.897s
 
 Запуск:
 * `go test -v` - чтобы проверить что ничего не сломалось
-* `go test -bench . -benchmem` - для просмотра производительности
+* `go test -bench . -benchmem -cpuprofile=cpu.out -memprofile=mem.out -memprofilerate=1` - для просмотра производительности
 * `go tool pprof -http=:8083 /path/ho/bin /path/to/out` - веб-интерфейс для pprof, пользуйтесь им для поиска горячих мест. Не забывайте, что у вас 2 режиме - cpu и mem, там разные out-файлы.
 
 Советы:
