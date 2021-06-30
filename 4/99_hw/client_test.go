@@ -332,7 +332,7 @@ func TestDataLengthNotEqualLimit(t *testing.T) {
 }
 
 func TestTimeoutError(t *testing.T) {
-	searchServer, searchClient, searchRequest := initFixtures("InvalidToken", nil)
+	searchServer, searchClient, searchRequest := initFixtures(token, nil)
 	searchServer.Close()
 
 	_, err := searchClient.FindUsers(searchRequest)
@@ -343,7 +343,7 @@ func TestTimeoutError(t *testing.T) {
 }
 
 func TestUnknownHttpRequestError(t *testing.T) {
-	searchServer, searchClient, searchRequest := initFixtures("InvalidToken", nil)
+	searchServer, searchClient, searchRequest := initFixtures(token, nil)
 	searchServer.Close()
 
 	searchClient.URL = ""
