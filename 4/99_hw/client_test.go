@@ -175,6 +175,14 @@ func order(field string, direction int, users []UserXML) {
 
 // TESTS
 
+type TestCase struct {
+	Description string
+	SearchRequest *SearchRequest
+	Result *SearchResponse
+	IsError bool
+	ErrorMessage string
+}
+
 func initFixtures(token string, handler func(w http.ResponseWriter, r *http.Request)) (*httptest.Server, *SearchClient, SearchRequest) {
 	if handler == nil {
 		handler = SearchServer
@@ -192,6 +200,80 @@ func initFixtures(token string, handler func(w http.ResponseWriter, r *http.Requ
 	return searchServer, &SearchClient{token, searchServer.URL}, searchRequest
 }
 
+// test limit and offset
+func TestParameters(t *testing.T) {
+	cases := []TestCase{
+		{
+			Description: "Test negative limit",
+			SearchRequest: &SearchRequest{
+				Limit:      -1,
+				Offset:     0,
+				Query:      "",
+				OrderField: "",
+				OrderBy:    0,
+			},
+			Result: nil,
+			IsError: true,
+			ErrorMessage: "limit must be > 0",
+		},
+		{
+			Description: "Test negative offset",
+			SearchRequest: &SearchRequest{
+				Limit:      2,
+				Offset:     -1,
+				Query:      "",
+				OrderField: "",
+				OrderBy:    0,
+			},
+			Result: nil,
+			IsError: true,
+			ErrorMessage: "offset must be > 0",
+		},
+		{
+			Description: "Test limit > 25",
+			SearchRequest: &SearchRequest{
+				Limit:      30,
+				Offset:     0,
+				Query:      "",
+				OrderField: "",
+				OrderBy:    0,
+			},
+			Result: &SearchResponse{
+				Users:    make([]User, 25),
+			},
+			IsError: false,
+		},
+		{
+			Description: "Test bad order field",
+			SearchRequest: &SearchRequest{
+				Limit:      5,
+				Offset:     0,
+				Query:      "",
+				OrderField: "InvalidOrderField",
+				OrderBy:    0,
+			},
+			Result: nil,
+			IsError: true,
+			ErrorMessage: "OrderFeld InvalidOrderField invalid",
+		},
+	}
+	searchServer, searchClient, _ := initFixtures(token, nil)
+	defer searchServer.Close()
+	for caseNum, item := range cases {
+		result, err := searchClient.FindUsers(*item.SearchRequest)
+
+		if err == nil && item.IsError {
+			t.Errorf("[%d] expected error, got nil", caseNum)
+		}
+		if  err != nil && item.ErrorMessage != "" && !strings.Contains(err.Error(), item.ErrorMessage) {
+			t.Errorf("[%d] unexpected error: %#v", caseNum, err)
+		}
+		if  item.Result != nil && len(result.Users) != len(item.Result.Users) {
+			t.Errorf("[%d] the wrong amount of users!", caseNum)
+		}
+	}
+}
+
 func TestFindUsersByLastName(t *testing.T) {
 	searchServer, searchClient, searchRequest := initFixtures(token, nil)
 	defer searchServer.Close()
@@ -199,45 +281,6 @@ func TestFindUsersByLastName(t *testing.T) {
 	_, err := searchClient.FindUsers(searchRequest)
 
 	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestNegativeLimit(t *testing.T) {
-	searchServer, searchClient, searchRequest := initFixtures(token, nil)
-	defer searchServer.Close()
-
-	searchRequest.Limit = -1
-
-	_, err := searchClient.FindUsers(searchRequest)
-
-	if err == nil || err.Error() != "limit must be > 0" {
-		t.Error(err)
-	}
-}
-
-func TestLimitMoreThanTwentyFive(t *testing.T) {
-	searchServer, searchClient, searchRequest := initFixtures(token, nil)
-	defer searchServer.Close()
-
-	searchRequest.Limit = 30
-
-	res, err := searchClient.FindUsers(searchRequest)
-
-	if err != nil || len(res.Users) != 25 {
-		t.Error(err)
-	}
-}
-
-func TestNegativeOffset(t *testing.T) {
-	searchServer, searchClient, searchRequest := initFixtures(token, nil)
-	defer searchServer.Close()
-
-	searchRequest.Offset = -1
-
-	_, err := searchClient.FindUsers(searchRequest)
-
-	if err == nil || err.Error() != "offset must be > 0" {
 		t.Error(err)
 	}
 }
@@ -252,19 +295,6 @@ func TestSearchServerFatalError(t *testing.T) {
 	_, err := searchClient.FindUsers(searchRequest)
 
 	if err == nil || err.Error() != "SearchServer fatal error" {
-		t.Error(err)
-	}
-}
-
-func TestBadOrderField(t *testing.T) {
-	searchServer, searchClient, searchRequest := initFixtures(token, nil)
-	defer searchServer.Close()
-
-	searchRequest.OrderField = "InvalidOrderField"
-
-	_, err := searchClient.FindUsers(searchRequest)
-
-	if err == nil || err.Error() != "OrderFeld InvalidOrderField invalid" {
 		t.Error(err)
 	}
 }
