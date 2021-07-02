@@ -431,7 +431,7 @@ func TestOrder(t *testing.T) {
 				{Id: 11, Name: "Gilmore Guerra"},
 				{Id: 12, Name: "Cruz Guerrero"},
 			}},
-			Token:   token,
+			Token: token,
 		},
 		{
 			Description:   "Test order by name ASC",
@@ -441,7 +441,7 @@ func TestOrder(t *testing.T) {
 				{Id: 11, Name: "Gilmore Guerra"},
 				{Id: 18, Name: "Terrel Hall"},
 			}},
-			Token:   token,
+			Token: token,
 		},
 		{
 			Description:   "Test order by id DESC",
@@ -451,7 +451,7 @@ func TestOrder(t *testing.T) {
 				{Id: 12, Name: "Cruz Guerrero"},
 				{Id: 11, Name: "Gilmore Guerra"},
 			}},
-			Token:   token,
+			Token: token,
 		},
 		{
 			Description:   "Test order by id ASC",
@@ -461,7 +461,7 @@ func TestOrder(t *testing.T) {
 				{Id: 12, Name: "Cruz Guerrero"},
 				{Id: 18, Name: "Terrel Hall"},
 			}},
-			Token:   token,
+			Token: token,
 		},
 		{
 			Description:   "Test order by age DESC",
@@ -471,7 +471,7 @@ func TestOrder(t *testing.T) {
 				{Id: 11, Name: "Gilmore Guerra", Age: 32},
 				{Id: 18, Name: "Terrel Hall", Age: 27},
 			}},
-			Token:   token,
+			Token: token,
 		},
 		{
 			Description:   "Test order by age ASC",
@@ -481,7 +481,7 @@ func TestOrder(t *testing.T) {
 				{Id: 11, Name: "Gilmore Guerra", Age: 32},
 				{Id: 12, Name: "Cruz Guerrero", Age: 36},
 			}},
-			Token:   token,
+			Token: token,
 		},
 	}
 
