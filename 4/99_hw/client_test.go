@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 type MyError struct {
@@ -151,21 +152,21 @@ func order(field string, direction int, users []UserXML) {
 		switch field {
 		case "Id":
 			if direction == -1 {
-				return users[i].Id > users[j].Id
-			} else {
 				return users[i].Id < users[j].Id
+			} else {
+				return users[i].Id > users[j].Id
 			}
 		case "Age":
 			if direction == -1 {
-				return users[i].Age > users[j].Age
-			} else {
 				return users[i].Age < users[j].Age
+			} else {
+				return users[i].Age > users[j].Age
 			}
 		case "Name":
 			if direction == -1 {
-				return (users[i].FirstName + " " + users[i].LastName) > (users[j].FirstName + " " + users[j].LastName)
+				return (users[i].FirstName + " " + users[i].LastName) < (users[j].FirstName + " " + users[j].LastName)
 			} else {
-				return users[i].FirstName+" "+users[i].LastName < users[j].FirstName+" "+users[j].LastName
+				return users[i].FirstName+" "+users[i].LastName > users[j].FirstName+" "+users[j].LastName
 			}
 		default:
 			return users[i].Id > users[j].Id
@@ -176,14 +177,21 @@ func order(field string, direction int, users []UserXML) {
 // TESTS
 
 type TestCase struct {
-	Description string
+	Description   string
 	SearchRequest *SearchRequest
-	Result *SearchResponse
-	IsError bool
-	ErrorMessage string
+	Result        *SearchResponse
+	IsError       bool
+	ErrorMessage  string
+	Handler       func(w http.ResponseWriter, r *http.Request)
+	Token         string
+	Url           *URL
 }
 
-func initFixtures(token string, handler func(w http.ResponseWriter, r *http.Request)) (*httptest.Server, *SearchClient, SearchRequest) {
+type URL struct {
+	url string
+}
+
+func initFixtures(token string, handler func(w http.ResponseWriter, r *http.Request), url *URL) (*httptest.Server, *SearchClient, SearchRequest) {
 	if handler == nil {
 		handler = SearchServer
 	}
@@ -197,201 +205,330 @@ func initFixtures(token string, handler func(w http.ResponseWriter, r *http.Requ
 		OrderBy:    0,
 	}
 
-	return searchServer, &SearchClient{token, searchServer.URL}, searchRequest
+	var urlAddress string
+	if url == nil {
+		urlAddress = searchServer.URL
+	} else {
+		urlAddress = url.url
+	}
+
+	return searchServer, &SearchClient{token, urlAddress}, searchRequest
 }
 
-// test limit and offset
+// test different search parameters
 func TestParameters(t *testing.T) {
 	cases := []TestCase{
 		{
-			Description: "Test negative limit",
-			SearchRequest: &SearchRequest{
-				Limit:      -1,
-				Offset:     0,
-				Query:      "",
-				OrderField: "",
-				OrderBy:    0,
-			},
-			Result: nil,
-			IsError: true,
-			ErrorMessage: "limit must be > 0",
+			Description:   "Test negative limit",
+			SearchRequest: &SearchRequest{Limit: -1},
+			Result:        nil,
+			IsError:       true,
+			ErrorMessage:  "limit must be > 0",
 		},
 		{
-			Description: "Test negative offset",
-			SearchRequest: &SearchRequest{
-				Limit:      2,
-				Offset:     -1,
-				Query:      "",
-				OrderField: "",
-				OrderBy:    0,
-			},
-			Result: nil,
-			IsError: true,
-			ErrorMessage: "offset must be > 0",
+			Description:   "Test negative offset",
+			SearchRequest: &SearchRequest{Offset: -1},
+			Result:        nil,
+			IsError:       true,
+			ErrorMessage:  "offset must be > 0",
 		},
 		{
-			Description: "Test limit > 25",
-			SearchRequest: &SearchRequest{
-				Limit:      30,
-				Offset:     0,
-				Query:      "",
-				OrderField: "",
-				OrderBy:    0,
-			},
+			Description:   "Test limit > 25",
+			SearchRequest: &SearchRequest{Limit: 30},
 			Result: &SearchResponse{
-				Users:    make([]User, 25),
+				Users: make([]User, 25),
 			},
 			IsError: false,
 		},
 		{
-			Description: "Test bad order field",
-			SearchRequest: &SearchRequest{
-				Limit:      5,
-				Offset:     0,
-				Query:      "",
-				OrderField: "InvalidOrderField",
-				OrderBy:    0,
+			Description:   "Test bad order field",
+			SearchRequest: &SearchRequest{OrderField: "InvalidOrderField"},
+			Result:        nil,
+			IsError:       true,
+			ErrorMessage:  "OrderFeld InvalidOrderField invalid",
+		},
+		{
+			Description:   "Test data length not equal limit",
+			SearchRequest: &SearchRequest{Limit: 10},
+			Result: &SearchResponse{
+				Users: make([]User, 1),
 			},
-			Result: nil,
-			IsError: true,
-			ErrorMessage: "OrderFeld InvalidOrderField invalid",
+			IsError: false,
+			Handler: func(w http.ResponseWriter, r *http.Request) {
+				user := []User{{14, "UserName", 23, "about info", "male"}}
+				resultJson, _ := json.Marshal(user)
+				_, _ = w.Write(resultJson)
+				return
+			},
 		},
 	}
-	searchServer, searchClient, _ := initFixtures(token, nil)
-	defer searchServer.Close()
+
 	for caseNum, item := range cases {
+		searchServer, searchClient, _ := initFixtures(token, item.Handler, item.Url)
 		result, err := searchClient.FindUsers(*item.SearchRequest)
 
 		if err == nil && item.IsError {
 			t.Errorf("[%d] expected error, got nil", caseNum)
 		}
-		if  err != nil && item.ErrorMessage != "" && !strings.Contains(err.Error(), item.ErrorMessage) {
+		if err != nil && item.ErrorMessage != "" && !strings.Contains(err.Error(), item.ErrorMessage) {
 			t.Errorf("[%d] unexpected error: %#v", caseNum, err)
 		}
-		if  item.Result != nil && len(result.Users) != len(item.Result.Users) {
+		if item.Result != nil && len(result.Users) != len(item.Result.Users) {
 			t.Errorf("[%d] the wrong amount of users!", caseNum)
 		}
+		searchServer.Close()
 	}
 }
 
-func TestFindUsersByLastName(t *testing.T) {
-	searchServer, searchClient, searchRequest := initFixtures(token, nil)
+func TestErrors(t *testing.T) {
+	cases := []TestCase{
+		{
+			Description:   "Test SearchServerFatalError",
+			SearchRequest: &SearchRequest{},
+			Result:        nil,
+			IsError:       true,
+			ErrorMessage:  "SearchServer fatal error",
+			Handler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			},
+			Token: token,
+		},
+		{
+			Description:   "Test cant unpack error's json",
+			SearchRequest: &SearchRequest{},
+			Result:        nil,
+			IsError:       true,
+			ErrorMessage:  "cant unpack error json: invalid character",
+			Handler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusBadRequest)
+				_, _ = w.Write([]byte("some wrong structured error message json"))
+				return
+			},
+			Token: token,
+		},
+		{
+			Description:   "Test unknown bad request error",
+			SearchRequest: &SearchRequest{},
+			Result:        nil,
+			IsError:       true,
+			ErrorMessage:  "unknown bad request error: SomeUnknownErrorMessage",
+			Handler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusBadRequest)
+				errorJson, _ := json.Marshal(&SearchErrorResponse{"SomeUnknownErrorMessage"})
+				_, _ = w.Write(errorJson)
+				return
+			},
+			Token: token,
+		},
+		{
+			Description:   "Test cant unpack result json",
+			SearchRequest: &SearchRequest{},
+			Result:        nil,
+			IsError:       true,
+			ErrorMessage:  "cant unpack result json",
+			Handler: func(w http.ResponseWriter, r *http.Request) {
+				resultJson, _ := json.Marshal("resultInvalidJson")
+				_, _ = w.Write(resultJson)
+				return
+			},
+			Token: token,
+		},
+		{
+			Description:   "Test timeout error",
+			SearchRequest: &SearchRequest{},
+			Result:        nil,
+			IsError:       true,
+			ErrorMessage:  "timeout for",
+			Handler: func(w http.ResponseWriter, r *http.Request) {
+				time.Sleep(2 * time.Second)
+				return
+			},
+			Token: token,
+		},
+		{
+			Description:   "Test invalid token",
+			SearchRequest: &SearchRequest{},
+			Result:        nil,
+			IsError:       true,
+			ErrorMessage:  "Bad AccessToken",
+			Token:         "InvalidToken",
+		},
+		{
+			Description:   "Test UnknownHttpRequestError",
+			SearchRequest: &SearchRequest{},
+			Result:        nil,
+			IsError:       true,
+			ErrorMessage:  "unknown error",
+			Token:         token,
+			Url:           &URL{url: ""},
+		},
+	}
+
+	for caseNum, item := range cases {
+		searchServer, searchClient, _ := initFixtures(item.Token, item.Handler, item.Url)
+		_, err := searchClient.FindUsers(*item.SearchRequest)
+
+		if err == nil && item.IsError {
+			t.Errorf("[%d] expected error, got nil", caseNum)
+		}
+		if err != nil && item.ErrorMessage != "" && !strings.Contains(err.Error(), item.ErrorMessage) {
+			t.Errorf("[%d] unexpected error: %#v", caseNum, err)
+		}
+
+		searchServer.Close()
+	}
+}
+
+// TEST LOGIC
+
+func TestFindUsersByQuery(t *testing.T) {
+	cases := []TestCase{
+		{
+			Description:   "Test search user by 'Name' field",
+			SearchRequest: &SearchRequest{Limit: 1, Query: "Hilda Mayer"},
+			Result:        &SearchResponse{Users: []User{{Id: 1, Name: "Hilda Mayer"}}},
+			IsError:       false,
+			Token:         token,
+		},
+		{
+			Description:   "Test search user by 'About' field",
+			SearchRequest: &SearchRequest{Limit: 1, Query: "Velit ullamco est aliqua voluptate nisi do"},
+			Result:        &SearchResponse{Users: []User{{Id: 1, About: "Velit ullamco est aliqua voluptate nisi do"}}},
+			IsError:       false,
+			Token:         token,
+		},
+	}
+
+	for caseNum, item := range cases {
+		searchServer, searchClient, _ := initFixtures(item.Token, item.Handler, item.Url)
+		res, err := searchClient.FindUsers(*item.SearchRequest)
+
+		if err != nil {
+			t.Errorf("[%d] unexpected error!", caseNum)
+		}
+		if res == nil {
+			t.Errorf("[%d] result is nil, value expected!", caseNum)
+		}
+		if len(res.Users) == 0 {
+			t.Errorf("[%d] result is empty, value expected!", caseNum)
+		}
+		if item.Result.Users[0].Name != res.Users[0].Name && !strings.Contains(res.Users[0].About, item.Result.Users[0].About) {
+			t.Errorf("[%d] unexpected value: %#v", caseNum, res.Users[0])
+		}
+
+		searchServer.Close()
+	}
+}
+
+func TestOrder(t *testing.T) {
+	cases := []TestCase{
+		{
+			Description:   "Test order by name DESC",
+			SearchRequest: &SearchRequest{Limit: 3, Query: "err", OrderField: "Name", OrderBy: OrderByDesc},
+			Result: &SearchResponse{Users: []User{
+				{Id: 18, Name: "Terrel Hall"},
+				{Id: 11, Name: "Gilmore Guerra"},
+				{Id: 12, Name: "Cruz Guerrero"},
+			}},
+			Token:   token,
+		},
+		{
+			Description:   "Test order by name ASC",
+			SearchRequest: &SearchRequest{Limit: 3, Query: "err", OrderField: "Name", OrderBy: OrderByAsc},
+			Result: &SearchResponse{Users: []User{
+				{Id: 12, Name: "Cruz Guerrero"},
+				{Id: 11, Name: "Gilmore Guerra"},
+				{Id: 18, Name: "Terrel Hall"},
+			}},
+			Token:   token,
+		},
+		{
+			Description:   "Test order by id DESC",
+			SearchRequest: &SearchRequest{Limit: 3, Query: "err", OrderField: "Id", OrderBy: OrderByDesc},
+			Result: &SearchResponse{Users: []User{
+				{Id: 18, Name: "Terrel Hall"},
+				{Id: 12, Name: "Cruz Guerrero"},
+				{Id: 11, Name: "Gilmore Guerra"},
+			}},
+			Token:   token,
+		},
+		{
+			Description:   "Test order by id ASC",
+			SearchRequest: &SearchRequest{Limit: 3, Query: "err", OrderField: "Id", OrderBy: OrderByAsc},
+			Result: &SearchResponse{Users: []User{
+				{Id: 11, Name: "Gilmore Guerra"},
+				{Id: 12, Name: "Cruz Guerrero"},
+				{Id: 18, Name: "Terrel Hall"},
+			}},
+			Token:   token,
+		},
+		{
+			Description:   "Test order by age DESC",
+			SearchRequest: &SearchRequest{Limit: 3, Query: "err", OrderField: "Age", OrderBy: OrderByDesc},
+			Result: &SearchResponse{Users: []User{
+				{Id: 12, Name: "Cruz Guerrero", Age: 36},
+				{Id: 11, Name: "Gilmore Guerra", Age: 32},
+				{Id: 18, Name: "Terrel Hall", Age: 27},
+			}},
+			Token:   token,
+		},
+		{
+			Description:   "Test order by age ASC",
+			SearchRequest: &SearchRequest{Limit: 3, Query: "err", OrderField: "Age", OrderBy: OrderByAsc},
+			Result: &SearchResponse{Users: []User{
+				{Id: 18, Name: "Terrel Hall", Age: 27},
+				{Id: 11, Name: "Gilmore Guerra", Age: 32},
+				{Id: 12, Name: "Cruz Guerrero", Age: 36},
+			}},
+			Token:   token,
+		},
+	}
+
+	for caseNum, item := range cases {
+		searchServer, searchClient, _ := initFixtures(item.Token, item.Handler, item.Url)
+		res, err := searchClient.FindUsers(*item.SearchRequest)
+
+		if err != nil {
+			t.Errorf("[%d] unexpected error!", caseNum)
+		}
+		if res == nil {
+			t.Errorf("[%d] result is nil, value expected!", caseNum)
+		}
+		if len(res.Users) == 0 {
+			t.Errorf("[%d] result is empty, value expected!", caseNum)
+		}
+		if len(item.Result.Users) == len(res.Users) {
+			for i, user := range res.Users {
+				if item.Result.Users[i].Id != user.Id {
+					t.Errorf("[%d] The order is wrong! %v", caseNum, res.Users)
+					break
+				}
+			}
+		} else {
+			t.Errorf("[%d] length of result is not equal length of testcase!", caseNum)
+		}
+
+		searchServer.Close()
+	}
+}
+
+func TestOffset(t *testing.T) {
+	expected := &SearchResponse{Users: []User{
+		{Id: 2, Name: "Brooks Aguilar"},
+		{Id: 3, Name: "Everett Dillard"},
+	}}
+
+	searchServer, searchClient, _ := initFixtures(token, nil, nil)
 	defer searchServer.Close()
 
-	_, err := searchClient.FindUsers(searchRequest)
+	res, err := searchClient.FindUsers(SearchRequest{Limit: 2, Offset: 2})
 
 	if err != nil {
-		t.Error(err)
+		t.Error("Unexpected error!")
 	}
-}
 
-func TestSearchServerFatalError(t *testing.T) {
-	searchServer, searchClient, searchRequest := initFixtures(token, func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	})
-	defer searchServer.Close()
-
-	_, err := searchClient.FindUsers(searchRequest)
-
-	if err == nil || err.Error() != "SearchServer fatal error" {
-		t.Error(err)
-	}
-}
-
-func TestCantUnpackErrorJson(t *testing.T) {
-	searchServer, searchClient, searchRequest := initFixtures(token, func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusBadRequest)
-		_, _ = w.Write([]byte("some wrong structured error message json"))
-		return
-	})
-	defer searchServer.Close()
-
-	_, err := searchClient.FindUsers(searchRequest)
-
-	if err == nil || err.Error() != "cant unpack error json: invalid character 's' looking for beginning of value" {
-		t.Error(err)
-	}
-}
-
-func TestUnknownBadRequestError(t *testing.T) {
-	searchServer, searchClient, searchRequest := initFixtures(token, func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusBadRequest)
-		errorJson, _ := json.Marshal(&SearchErrorResponse{"SomeUnknownErrorMessage"})
-		_, _ = w.Write(errorJson)
-		return
-	})
-	defer searchServer.Close()
-
-	_, err := searchClient.FindUsers(searchRequest)
-
-	if err == nil || err.Error() != "unknown bad request error: SomeUnknownErrorMessage" {
-		t.Error(err)
-	}
-}
-
-func TestCantUnpackResultJson(t *testing.T) {
-	searchServer, searchClient, searchRequest := initFixtures(token, func(w http.ResponseWriter, r *http.Request) {
-		resultJson, _ := json.Marshal("resultInvalidJson")
-		_, _ = w.Write(resultJson)
-		return
-	})
-	defer searchServer.Close()
-
-	_, err := searchClient.FindUsers(searchRequest)
-
-	if err == nil || !strings.Contains(err.Error(), "cant unpack result json") {
-		t.Error(err)
-	}
-}
-
-func TestDataLengthNotEqualLimit(t *testing.T) {
-	searchServer, searchClient, searchRequest := initFixtures(token, func(w http.ResponseWriter, r *http.Request) {
-		user := []User{{14, "UserName", 23, "about info", "male"}}
-		resultJson, _ := json.Marshal(user)
-		_, _ = w.Write(resultJson)
-		return
-	})
-	defer searchServer.Close()
-
-	res, err := searchClient.FindUsers(searchRequest)
-
-	if err != nil || len(res.Users) != 1 {
-		t.Error(err)
-	}
-}
-
-func TestTimeoutError(t *testing.T) {
-	searchServer, searchClient, searchRequest := initFixtures(token, nil)
-	searchServer.Close()
-
-	_, err := searchClient.FindUsers(searchRequest)
-
-	if err == nil || !strings.Contains(err.Error(), "timeout for") {
-		t.Error(err)
-	}
-}
-
-func TestUnknownHttpRequestError(t *testing.T) {
-	searchServer, searchClient, searchRequest := initFixtures(token, nil)
-	searchServer.Close()
-
-	searchClient.URL = ""
-
-	_, err := searchClient.FindUsers(searchRequest)
-
-	if err == nil || !strings.Contains(err.Error(), "unknown error") {
-		t.Error(err)
-	}
-}
-
-func TestInvalidToken(t *testing.T) {
-	searchServer, searchClient, searchRequest := initFixtures("InvalidToken", nil)
-	defer searchServer.Close()
-
-	_, err := searchClient.FindUsers(searchRequest)
-
-	if err == nil || err.Error() != "Bad AccessToken" {
-		t.Error(err)
+	if res.Users[0].Id != expected.Users[0].Id && res.Users[1].Id != expected.Users[1].Id {
+		t.Error("Wrong values of offset!")
 	}
 }
