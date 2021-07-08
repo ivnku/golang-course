@@ -1,0 +1,11 @@
+module myapp
+
+go 1.16
+
+require (
+	github.com/go-sql-driver/mysql v1.5.0
+	//	github.com/rvasily/examplerepo v0.0.0-20170218071937-9b59d66a1aa9
+	github.com/rvasily/examplerepo v0.1.1
+)
+
+replace github.com/rvasily/examplerepo => ./local/examplerepo

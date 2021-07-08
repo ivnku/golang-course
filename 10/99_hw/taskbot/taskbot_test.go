@@ -11,7 +11,7 @@ import (
 	// "encoding/json"
 	"fmt"
 
-	tgbotapi "gopkg.in/telegram-bot-api.v4"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 
 	// "io/ioutil"
 	"net/http"
@@ -167,14 +167,14 @@ type testCase struct {
 
 func TestTasks(t *testing.T) {
 
-	tds := NewTDS()
+	tds := NewTDS() // это мой эмулятор телеграм сервера
 	ts := httptest.NewServer(tds)
 	tgbotapi.APIEndpoint = ts.URL + "/bot%s/%s"
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go func() {
-		err := startTaskBot(ctx)
+		err := startTaskBot(ctx, ":8081")
 		if err != nil {
 			t.Fatalf("startTaskBot error: %s", err)
 		}

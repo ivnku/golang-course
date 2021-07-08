@@ -1,0 +1,40 @@
+? tree
+.
+├── bin
+    crudapp
+    crudapp_auth
+    crudapp_queue
+├── cmd
+│   └── crudapp
+│       └── main.go
+│   └── crudapp_auth
+│       └── main.go
+│   └── crudapp_queue
+│       └── main.go
+├── go.mod
+├── go.sum
+├── pkg
+│   ├── handlers
+│   │   ├── items.go
+│   │   └── user.go
+│   ├── items
+│   │   ├── item.go
+│   │   └── repo.go
+│   ├── middleware
+│   │   ├── accesslog.go
+│   │   ├── auth.go
+│   │   └── panic.go
+│   ├── session
+│   │   ├── manager.go
+│   │   └── session.go
+│   └── user
+│       ├── user.go
+│       └── repo.go
+├── readme.md
+└── templates
+    ├── create.html
+    ├── edit.html
+    ├── index.html
+    └── login.html
+
+10 directories, 18 files
