@@ -1,17 +1,16 @@
-package handlers
+package user
 
 import (
 	"encoding/json"
 	"net/http"
-	"redditclone/internal/repositories"
 )
 
-type UserHandler struct {}
+type Handler struct {
+	Repository Repository
+}
 
-func (uh *UserHandler) List(w http.ResponseWriter, r *http.Request) {
-	usersRepository := &repositories.UsersRepository{}
-
-	users, err := usersRepository.List()
+func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
+	users, err := h.Repository.List()
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

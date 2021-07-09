@@ -1,4 +1,4 @@
-package models
+package vote
 
 
 type Vote struct {

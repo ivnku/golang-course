@@ -1,9 +1,9 @@
 package main
 
 import (
-	"redditclone/internal"
+	"redditclone/pkg"
 )
 
 func main() {
-	internal.InitApp()
+	pkg.InitApp()
 }

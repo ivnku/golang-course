@@ -1,4 +1,4 @@
-package internal
+package pkg
 
 import (
 	_ "github.com/go-sql-driver/mysql"
@@ -7,16 +7,23 @@ import (
 	"gorm.io/gorm"
 	"log"
 	"net/http"
-	"redditclone/internal/handlers"
+	"redditclone/pkg/domain/post"
+	"redditclone/pkg/domain/user"
 	"time"
 )
 
-var DB *gorm.DB
-
 func InitApp() {
-	InitDb()
+	db := InitDb()
+
+	usersRepo := user.Repository{DB: db}
+	postsRepo := post.Repository{DB: db}
+
+	usersHandler := user.Handler{Repository: usersRepo}
+	postsHandler := post.Handler{Repository: postsRepo}
+
 	router := mux.NewRouter()
-	router.HandleFunc("/hello", (&handlers.UserHandler{}).List)
+	router.HandleFunc("/hello", usersHandler.List)
+	router.HandleFunc("/hello/posts", postsHandler.List)
 	router.HandleFunc("/api/posts/", func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("Hello world!")) })
 	router.PathPrefix("/").Handler(http.FileServer(http.Dir("./template")))
 
@@ -30,7 +37,7 @@ func InitApp() {
 	log.Fatal(srv.ListenAndServe())
 }
 
-func InitDb() {
+func InitDb() *gorm.DB {
 	dsn := "root@tcp(127.0.0.1:3306)/redditclone?"
 	dsn += "&charset=utf8"
 	dsn += "&interpolateParams=true"
@@ -41,5 +48,5 @@ func InitDb() {
 		panic(err)
 	}
 
-	DB = db
+	return db
 }
