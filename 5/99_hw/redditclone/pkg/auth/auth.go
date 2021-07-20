@@ -68,7 +68,7 @@ func GenerateJWT(login string, userId uint) (string, error) {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, &jwt.MapClaims{
 		"user": map[string]string{"username": login, "id": strconv.Itoa(int(userId))},
-		"exp":  time.Now().Add(time.Minute * time.Duration(10)).Unix(),
+		"exp":  time.Now().Add(time.Minute * time.Duration(20)).Unix(),
 		"iat":  time.Now().Unix(),
 	})
 

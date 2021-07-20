@@ -7,15 +7,18 @@ import (
 )
 
 type Post struct {
-	ID   uint
-	Title string
-	Category string
-	Score int
-	Type string
-	UpvotePercentage int
-	Views int
-	CreatedAt string
-	Author *user.User
-	Comments []*comment.Comment
-	Votes []*vote.Vote
+	ID               uint              `json:"id"`
+	Title            string            `json:"title"`
+	Category         string            `json:"category"`
+	Score            int               `json:"score"`
+	Type             string            `json:"type"`
+	Url              string            `json:"url"`
+	Text             string            `json:"text"`
+	UpvotePercentage int               `json:"upvotePercentage"`
+	Views            int               `json:"views"`
+	CreatedAt        string            `json:"created"`
+	UserID           uint              `json:"-"`
+	User             user.User         `json:"author"`
+	Comments         []comment.Comment `json:"comments"`
+	Votes            []*vote.Vote      `json:"votes"`
 }

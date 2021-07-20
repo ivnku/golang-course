@@ -7,8 +7,10 @@ import (
 	"gorm.io/gorm"
 	"log"
 	"net/http"
+	"redditclone/pkg/domain/comment"
 	"redditclone/pkg/domain/post"
 	"redditclone/pkg/domain/user"
+	"redditclone/pkg/middleware"
 	"time"
 )
 
@@ -17,14 +19,31 @@ func InitApp() {
 
 	usersRepo := user.Repository{DB: db}
 	postsRepo := post.Repository{DB: db}
+	commentsRepo := comment.Repository{DB: db}
 
 	usersHandler := user.Handler{Repository: usersRepo}
-	postsHandler := post.Handler{Repository: postsRepo}
+	postsHandler := post.Handler{Repository: postsRepo, CommentsRepo: commentsRepo}
 
 	router := mux.NewRouter()
-	router.HandleFunc("/hello", usersHandler.List)
-	router.HandleFunc("/hello/posts", postsHandler.List)
-	router.HandleFunc("/api/posts/", func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("Hello world!")) })
+	authRouter := router.PathPrefix("/").Subrouter()
+
+	// Log in & Register routes
+	router.HandleFunc("/api/register", usersHandler.Register).Methods("POST")
+	router.HandleFunc("/api/login", usersHandler.Auth).Methods("POST")
+
+	// Posts routes
+	router.HandleFunc("/api/posts/", postsHandler.List).Methods("GET")
+	authRouter.HandleFunc("/api/posts", postsHandler.Create).Methods("POST")
+	router.HandleFunc("/api/post/{id}", postsHandler.Get).Methods("GET")
+	authRouter.HandleFunc("/api/post/{id}", postsHandler.Delete).Methods("DELETE")
+
+	// Comments routes
+	authRouter.HandleFunc("/api/post/{id}", postsHandler.Comment).Methods("POST")
+
+	//authRouter.HandleFunc("/hello/posts", postsHandler.List).Methods("GET")
+
+	authRouter.Use(middleware.AuthCheck)
+
 	router.PathPrefix("/").Handler(http.FileServer(http.Dir("./template")))
 
 	srv := &http.Server{
