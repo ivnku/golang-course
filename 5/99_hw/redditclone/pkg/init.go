@@ -17,12 +17,12 @@ import (
 func InitApp() {
 	db := InitDb()
 
-	usersRepo := user.Repository{DB: db}
-	postsRepo := post.Repository{DB: db}
-	commentsRepo := comment.Repository{DB: db}
+	usersRepo := user.NewRepository(db)
+	postsRepo := post.NewRepository(db)
+	commentsRepo := comment.NewRepository(db)
 
 	usersHandler := user.Handler{Repository: usersRepo}
-	postsHandler := post.Handler{Repository: postsRepo, CommentsRepo: commentsRepo}
+	postsHandler := post.Handler{Repository: postsRepo, CommentsRepo: commentsRepo, UsersRepo: usersRepo}
 
 	router := mux.NewRouter()
 	authRouter := router.PathPrefix("/").Subrouter()
@@ -33,12 +33,15 @@ func InitApp() {
 
 	// Posts routes
 	router.HandleFunc("/api/posts/", postsHandler.List).Methods("GET")
+	router.HandleFunc("/api/posts/{categoryName}", postsHandler.CategoryList).Methods("GET")
+	router.HandleFunc("/api/user/{userName}", postsHandler.UserList).Methods("GET")
 	authRouter.HandleFunc("/api/posts", postsHandler.Create).Methods("POST")
 	router.HandleFunc("/api/post/{id}", postsHandler.Get).Methods("GET")
 	authRouter.HandleFunc("/api/post/{id}", postsHandler.Delete).Methods("DELETE")
 
 	// Comments routes
 	authRouter.HandleFunc("/api/post/{id}", postsHandler.Comment).Methods("POST")
+	authRouter.HandleFunc("/api/post/{postId}/{commentId}", postsHandler.DeleteComment).Methods("DELETE")
 
 	//authRouter.HandleFunc("/hello/posts", postsHandler.List).Methods("GET")
 

@@ -6,14 +6,16 @@ import (
 	"net/http"
 	"redditclone/configs"
 	"redditclone/pkg/domain/comment"
+	userPkg "redditclone/pkg/domain/user"
 	"redditclone/pkg/helpers"
 	"strconv"
 	"time"
 )
 
 type Handler struct {
-	Repository Repository
+	Repository   Repository
 	CommentsRepo comment.Repository
+	UsersRepo    userPkg.Repository
 }
 
 /**
@@ -56,6 +58,65 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
  */
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	posts, err := h.Repository.List()
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	postsSerialized, err := json.Marshal(posts)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(postsSerialized)
+}
+
+/**
+ * @Description: Get posts within a certain category
+ * @receiver h
+ * @param w
+ * @param r
+ */
+func (h *Handler) CategoryList(w http.ResponseWriter, r *http.Request) {
+	routeParams := mux.Vars(r)
+
+	posts, err := h.Repository.CategoryList(routeParams["categoryName"])
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	postsSerialized, err := json.Marshal(posts)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(postsSerialized)
+}
+
+/**
+ * @Description: Get posts of a certain user
+ * @receiver h
+ * @param w
+ * @param r
+ */
+func (h *Handler) UserList(w http.ResponseWriter, r *http.Request) {
+	routeParams := mux.Vars(r)
+
+	user, err := h.UsersRepo.GetByName(routeParams["userName"])
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	posts, err := h.Repository.UserList(user.ID)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -171,7 +232,7 @@ func (h *Handler) Comment(w http.ResponseWriter, r *http.Request) {
 
 	postComment := &comment.Comment{}
 
-	reqComment := &struct{
+	reqComment := &struct {
 		Comment string `json:"comment"`
 	}{}
 
@@ -221,6 +282,53 @@ func (h *Handler) Comment(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		helpers.JsonError(w, http.StatusBadRequest, "Couldn't serialize the post!")
+		return
+	}
+
+	w.Write(postSerialized)
+}
+
+/**
+ * @Description: Delete a post's comment
+ * @receiver h
+ * @param w
+ * @param r
+ */
+func (h *Handler) DeleteComment(w http.ResponseWriter, r *http.Request) {
+	routeParams := mux.Vars(r)
+
+	commentId, err := strconv.ParseUint(routeParams["commentId"], 10, 0)
+
+	if err != nil {
+		helpers.JsonError(w, http.StatusBadRequest, "Couldn't convert commentId to uint!")
+		return
+	}
+
+	postId, err := strconv.ParseUint(routeParams["postId"], 10, 0)
+
+	if err != nil {
+		helpers.JsonError(w, http.StatusBadRequest, "Couldn't convert postId to uint!")
+		return
+	}
+
+	_, err = h.CommentsRepo.Delete(uint(commentId))
+
+	if err != nil {
+		helpers.JsonError(w, http.StatusBadRequest, "Couldn't delete post comment!")
+		return
+	}
+
+	post, err := h.Repository.Get(uint(postId))
+
+	if err != nil {
+		helpers.JsonError(w, http.StatusBadRequest, "Couldn't get the post!")
+		return
+	}
+
+	postSerialized, err := json.Marshal(post)
+
+	if err != nil {
+		helpers.JsonError(w, http.StatusBadRequest, "Couldn't marshal the post!")
 		return
 	}
 

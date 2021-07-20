@@ -5,7 +5,11 @@ import (
 )
 
 type Repository struct {
-	DB *gorm.DB
+	db *gorm.DB
+}
+
+func NewRepository(db *gorm.DB) Repository {
+	return Repository{db}
 }
 
 /**
@@ -17,7 +21,7 @@ type Repository struct {
 func (r *Repository) List() ([]*User, error) {
 	var users []*User
 
-	db := r.DB.Find(&users)
+	db := r.db.Find(&users)
 
 	if err := db.Error; err != nil {
 		return users, err
@@ -36,7 +40,7 @@ func (r *Repository) List() ([]*User, error) {
 func (r *Repository) Get(id int) (*User, error) {
 	var user *User
 
-	db := r.DB.First(&user, id)
+	db := r.db.First(&user, id)
 
 	if err := db.Error; err != nil {
 		return nil, err
@@ -55,7 +59,7 @@ func (r *Repository) Get(id int) (*User, error) {
 func (r *Repository) GetByName(name string) (*User, error) {
 	var user *User
 
-	db := r.DB.First(&user, "name = ?", name)
+	db := r.db.First(&user, "name = ?", name)
 
 	if err := db.Error; err != nil {
 		return nil, err
@@ -72,7 +76,7 @@ func (r *Repository) GetByName(name string) (*User, error) {
  * @return error
  */
 func (r *Repository) Create(user *User) (uint, error) {
-	result := r.DB.Create(&user)
+	result := r.db.Create(&user)
 
 	if result.Error != nil {
 		return 0, result.Error
