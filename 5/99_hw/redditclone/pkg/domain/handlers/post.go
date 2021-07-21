@@ -1,21 +1,21 @@
-package post
+package handlers
 
 import (
 	"encoding/json"
 	"github.com/gorilla/mux"
 	"net/http"
 	"redditclone/configs"
-	"redditclone/pkg/domain/comment"
-	userPkg "redditclone/pkg/domain/user"
+	"redditclone/pkg/domain/models"
+	"redditclone/pkg/domain/repositories"
 	"redditclone/pkg/helpers"
 	"strconv"
 	"time"
 )
 
-type Handler struct {
-	Repository   Repository
-	CommentsRepo comment.Repository
-	UsersRepo    userPkg.Repository
+type PostsHandler struct {
+	PostsRepository    repositories.PostsRepository
+	CommentsRepository repositories.CommentsRepository
+	UsersRepository    repositories.UsersRepository
 }
 
 /**
@@ -24,7 +24,7 @@ type Handler struct {
  * @param w
  * @param r
  */
-func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
+func (h *PostsHandler) Get(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	id, err := strconv.ParseUint(params["id"], 10, 0)
 
@@ -33,12 +33,16 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	post, err := h.Repository.Get(uint(id))
+	post, err := h.PostsRepository.Get(uint(id))
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	// increment views each time a user open the post
+	post.Views++
+	post, _ = h.PostsRepository.Update(post, []string{"views"})
 
 	postSerialized, err := json.Marshal(post)
 
@@ -56,8 +60,8 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
  * @param w
  * @param r
  */
-func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
-	posts, err := h.Repository.List()
+func (h *PostsHandler) List(w http.ResponseWriter, r *http.Request) {
+	posts, err := h.PostsRepository.List()
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -80,10 +84,10 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
  * @param w
  * @param r
  */
-func (h *Handler) CategoryList(w http.ResponseWriter, r *http.Request) {
+func (h *PostsHandler) CategoryList(w http.ResponseWriter, r *http.Request) {
 	routeParams := mux.Vars(r)
 
-	posts, err := h.Repository.CategoryList(routeParams["categoryName"])
+	posts, err := h.PostsRepository.CategoryList(routeParams["categoryName"])
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -106,17 +110,17 @@ func (h *Handler) CategoryList(w http.ResponseWriter, r *http.Request) {
  * @param w
  * @param r
  */
-func (h *Handler) UserList(w http.ResponseWriter, r *http.Request) {
+func (h *PostsHandler) UserList(w http.ResponseWriter, r *http.Request) {
 	routeParams := mux.Vars(r)
 
-	user, err := h.UsersRepo.GetByName(routeParams["userName"])
+	user, err := h.UsersRepository.GetByName(routeParams["userName"])
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	posts, err := h.Repository.UserList(user.ID)
+	posts, err := h.PostsRepository.UserList(user.ID)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -139,10 +143,10 @@ func (h *Handler) UserList(w http.ResponseWriter, r *http.Request) {
  * @param w
  * @param r
  */
-func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
+func (h *PostsHandler) Create(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 
-	post := &Post{}
+	post := &models.Post{}
 
 	err := decoder.Decode(post)
 	if err != nil {
@@ -165,7 +169,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	post.User.Name = user["username"]
 	post.CreatedAt = time.Now().Format("2006-01-02 15:04:05")
 
-	post, err = h.Repository.Create(post)
+	post, err = h.PostsRepository.Create(post)
 
 	if err != nil {
 		helpers.JsonError(w, http.StatusBadRequest, "Couldn't create the post!")
@@ -188,7 +192,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
  * @param w
  * @param r
  */
-func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
+func (h *PostsHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	id, err := strconv.ParseUint(params["id"], 10, 0)
 
@@ -197,7 +201,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	success, err := h.Repository.Delete(uint(id))
+	success, err := h.PostsRepository.Delete(uint(id))
 
 	type Message struct {
 		Message string `json:"message"`
@@ -226,11 +230,11 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
  * @param w
  * @param r
  */
-func (h *Handler) Comment(w http.ResponseWriter, r *http.Request) {
+func (h *PostsHandler) Comment(w http.ResponseWriter, r *http.Request) {
 	routeParams := mux.Vars(r)
 	decoder := json.NewDecoder(r.Body)
 
-	postComment := &comment.Comment{}
+	postComment := &models.Comment{}
 
 	reqComment := &struct {
 		Comment string `json:"comment"`
@@ -264,14 +268,14 @@ func (h *Handler) Comment(w http.ResponseWriter, r *http.Request) {
 	postComment.Created = time.Now().Format("2006-01-02 15:04:05")
 	postComment.PostID = uint(postId)
 
-	postComment, err = h.CommentsRepo.Create(postComment)
+	postComment, err = h.CommentsRepository.Create(postComment)
 
 	if err != nil {
 		helpers.JsonError(w, http.StatusBadRequest, "Couldn't create a comment!")
 		return
 	}
 
-	post, err := h.Repository.Get(uint(postId))
+	post, err := h.PostsRepository.Get(uint(postId))
 
 	if err != nil {
 		helpers.JsonError(w, http.StatusBadRequest, "Couldn't get the post!")
@@ -294,7 +298,7 @@ func (h *Handler) Comment(w http.ResponseWriter, r *http.Request) {
  * @param w
  * @param r
  */
-func (h *Handler) DeleteComment(w http.ResponseWriter, r *http.Request) {
+func (h *PostsHandler) DeleteComment(w http.ResponseWriter, r *http.Request) {
 	routeParams := mux.Vars(r)
 
 	commentId, err := strconv.ParseUint(routeParams["commentId"], 10, 0)
@@ -311,14 +315,14 @@ func (h *Handler) DeleteComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = h.CommentsRepo.Delete(uint(commentId))
+	_, err = h.CommentsRepository.Delete(uint(commentId))
 
 	if err != nil {
 		helpers.JsonError(w, http.StatusBadRequest, "Couldn't delete post comment!")
 		return
 	}
 
-	post, err := h.Repository.Get(uint(postId))
+	post, err := h.PostsRepository.Get(uint(postId))
 
 	if err != nil {
 		helpers.JsonError(w, http.StatusBadRequest, "Couldn't get the post!")

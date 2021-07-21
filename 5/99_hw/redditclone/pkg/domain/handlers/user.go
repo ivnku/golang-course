@@ -1,14 +1,16 @@
-package user
+package handlers
 
 import (
 	"encoding/json"
 	"net/http"
 	"redditclone/pkg/auth"
+	"redditclone/pkg/domain/models"
+	"redditclone/pkg/domain/repositories"
 	"redditclone/pkg/helpers"
 )
 
-type Handler struct {
-	Repository Repository
+type UsersHandler struct {
+	UsersRepository repositories.UsersRepository
 }
 
 /**
@@ -17,7 +19,7 @@ type Handler struct {
  * @param w
  * @param r
  */
-func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
+func (h *UsersHandler) Register(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 
 	type formData struct {
@@ -32,7 +34,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.Repository.GetByName(data.Login)
+	user, err := h.UsersRepository.GetByName(data.Login)
 
 	if user != nil {
 		helpers.JsonError(w, http.StatusBadRequest, "User with the such name already exists!")
@@ -46,8 +48,8 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userToRegister := &User{Name: data.Login, Password: passwordHash}
-	userId, err := h.Repository.Create(userToRegister)
+	userToRegister := &models.User{Name: data.Login, Password: passwordHash}
+	userId, err := h.UsersRepository.Create(userToRegister)
 
 	if err != nil {
 		helpers.JsonError(w, http.StatusInternalServerError, "Couldn't register user!")
@@ -72,7 +74,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
  * @param w
  * @param r
  */
-func (h *Handler) Auth(w http.ResponseWriter, r *http.Request) {
+func (h *UsersHandler) Auth(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 
 	type formData struct {
@@ -87,7 +89,7 @@ func (h *Handler) Auth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.Repository.GetByName(data.Login)
+	user, err := h.UsersRepository.GetByName(data.Login)
 
 	if user == nil {
 		helpers.JsonError(w, http.StatusBadRequest, "User doesn't exist!")
@@ -112,8 +114,8 @@ func (h *Handler) Auth(w http.ResponseWriter, r *http.Request) {
  * @param w
  * @param r
  */
-func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
-	users, err := h.Repository.List()
+func (h *UsersHandler) List(w http.ResponseWriter, r *http.Request) {
+	users, err := h.UsersRepository.List()
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

@@ -7,9 +7,8 @@ import (
 	"gorm.io/gorm"
 	"log"
 	"net/http"
-	"redditclone/pkg/domain/comment"
-	"redditclone/pkg/domain/post"
-	"redditclone/pkg/domain/user"
+	"redditclone/pkg/domain/handlers"
+	"redditclone/pkg/domain/repositories"
 	"redditclone/pkg/middleware"
 	"time"
 )
@@ -17,12 +16,14 @@ import (
 func InitApp() {
 	db := InitDb()
 
-	usersRepo := user.NewRepository(db)
-	postsRepo := post.NewRepository(db)
-	commentsRepo := comment.NewRepository(db)
+	usersRepo := repositories.NewUsersRepository(db)
+	postsRepo := repositories.NewPostsRepository(db)
+	commentsRepo := repositories.NewCommentsRepository(db)
+	votesRepo := repositories.NewVotesRepository(db)
 
-	usersHandler := user.Handler{Repository: usersRepo}
-	postsHandler := post.Handler{Repository: postsRepo, CommentsRepo: commentsRepo, UsersRepo: usersRepo}
+	usersHandler := handlers.UsersHandler{UsersRepository: usersRepo}
+	postsHandler := handlers.PostsHandler{PostsRepository: postsRepo, CommentsRepository: commentsRepo, UsersRepository: usersRepo}
+	votesHandler := handlers.VotesHandler{VotesRepository: votesRepo, PostsRepository: postsRepo}
 
 	router := mux.NewRouter()
 	authRouter := router.PathPrefix("/").Subrouter()
@@ -43,7 +44,8 @@ func InitApp() {
 	authRouter.HandleFunc("/api/post/{id}", postsHandler.Comment).Methods("POST")
 	authRouter.HandleFunc("/api/post/{postId}/{commentId}", postsHandler.DeleteComment).Methods("DELETE")
 
-	//authRouter.HandleFunc("/hello/posts", postsHandler.List).Methods("GET")
+	// Votes routes
+	authRouter.HandleFunc("/api/post/{id}/upvote", votesHandler.Upvote).Methods("GET")
 
 	authRouter.Use(middleware.AuthCheck)
 

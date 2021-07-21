@@ -1,4 +1,4 @@
-package vote
+package models
 
 type Vote struct {
 	ID     uint `json:"-"`

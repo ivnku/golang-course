@@ -1,13 +1,16 @@
-package comment
+package repositories
 
-import "gorm.io/gorm"
+import (
+	"gorm.io/gorm"
+	"redditclone/pkg/domain/models"
+)
 
-type Repository struct {
+type CommentsRepository struct {
 	db *gorm.DB
 }
 
-func NewRepository(db *gorm.DB) Repository {
-	return Repository{db}
+func NewCommentsRepository(db *gorm.DB) CommentsRepository {
+	return CommentsRepository{db}
 }
 
 /**
@@ -17,7 +20,7 @@ func NewRepository(db *gorm.DB) Repository {
  * @return *Comment
  * @return error
  */
-func (r *Repository) Create(postComment *Comment) (*Comment, error) {
+func (r *CommentsRepository) Create(postComment *models.Comment) (*models.Comment, error) {
 	db := r.db.Create(postComment)
 
 	if err := db.Error; err != nil {
@@ -34,9 +37,9 @@ func (r *Repository) Create(postComment *Comment) (*Comment, error) {
  * @return bool
  * @return error
  */
-func (r *Repository) Delete(id uint) (bool, error) {
+func (r *CommentsRepository) Delete(id uint) (bool, error) {
 
-	db := r.db.Delete(&Comment{}, id)
+	db := r.db.Delete(&models.Comment{}, id)
 
 	if err := db.Error; err != nil {
 		return false, err

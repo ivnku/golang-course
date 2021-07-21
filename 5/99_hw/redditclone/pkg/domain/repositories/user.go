@@ -1,15 +1,16 @@
-package user
+package repositories
 
 import (
 	"gorm.io/gorm"
+	"redditclone/pkg/domain/models"
 )
 
-type Repository struct {
+type UsersRepository struct {
 	db *gorm.DB
 }
 
-func NewRepository(db *gorm.DB) Repository {
-	return Repository{db}
+func NewUsersRepository(db *gorm.DB) UsersRepository {
+	return UsersRepository{db}
 }
 
 /**
@@ -18,8 +19,8 @@ func NewRepository(db *gorm.DB) Repository {
  * @return []*User
  * @return error
  */
-func (r *Repository) List() ([]*User, error) {
-	var users []*User
+func (r *UsersRepository) List() ([]*models.User, error) {
+	var users []*models.User
 
 	db := r.db.Find(&users)
 
@@ -37,8 +38,8 @@ func (r *Repository) List() ([]*User, error) {
  * @return *User
  * @return error
  */
-func (r *Repository) Get(id int) (*User, error) {
-	var user *User
+func (r *UsersRepository) Get(id int) (*models.User, error) {
+	var user *models.User
 
 	db := r.db.First(&user, id)
 
@@ -56,8 +57,8 @@ func (r *Repository) Get(id int) (*User, error) {
  * @return *User
  * @return error
  */
-func (r *Repository) GetByName(name string) (*User, error) {
-	var user *User
+func (r *UsersRepository) GetByName(name string) (*models.User, error) {
+	var user *models.User
 
 	db := r.db.First(&user, "name = ?", name)
 
@@ -75,7 +76,7 @@ func (r *Repository) GetByName(name string) (*User, error) {
  * @return uint
  * @return error
  */
-func (r *Repository) Create(user *User) (uint, error) {
+func (r *UsersRepository) Create(user *models.User) (uint, error) {
 	result := r.db.Create(&user)
 
 	if result.Error != nil {
