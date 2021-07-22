@@ -1,6 +1,9 @@
 package votes
 
-import "redditclone/pkg/domain/models"
+import (
+	"redditclone/pkg/domain/models"
+	"redditclone/pkg/domain/repositories"
+)
 
 /**
  * @Description: Calculate upvote percentage
@@ -16,7 +19,11 @@ func CalculateUpvotePercentage(votes []*models.Vote) int {
 		}
 	}
 
-	upvotePercentage := (upvotes / totalVotes) * 100
+	var upvotePercentage int
+	if totalVotes > 0 {
+		upvotePercentage = int(float32(upvotes) / float32(totalVotes) * 100)
+
+	}
 
 	return upvotePercentage
 }
@@ -33,4 +40,117 @@ func CalculateScore(votes []*models.Vote) int {
 	}
 
 	return score
+}
+
+/**
+ * @Description: Apply either upvote, downvote or unvote
+ * @param postsRepository
+ * @param votesRepository
+ * @param postId
+ * @param userId
+ * @param voteValue
+ * @return *models.Post
+ * @return error
+ */
+func ApplyVote(
+	postsRepository repositories.PostsRepository,
+	votesRepository repositories.VotesRepository,
+	postId uint,
+	userId uint,
+	voteValue int,
+) (*models.Post, error) {
+	post, err := postsRepository.Get(postId)
+
+	if err != nil {
+		return nil, err
+	}
+
+	isAbleToVote := true
+
+	for _, vote := range post.Votes {
+		if vote.UserId == userId {
+			isAbleToVote = false
+			break
+		}
+	}
+
+	if isAbleToVote {
+		vote := &models.Vote{
+			PostId: postId,
+			UserId: userId,
+			Vote:   voteValue,
+		}
+
+		vote, err = votesRepository.Create(vote)
+
+		if err != nil {
+			return post, err
+		}
+
+		post.Votes = append(post.Votes, vote)
+		post.UpvotePercentage = CalculateUpvotePercentage(post.Votes)
+		post.Score = CalculateScore(post.Votes)
+
+		post, err = postsRepository.Update(post, []string{"upvote_percentage", "score"})
+
+		if err != nil {
+			return post, err
+		}
+	} else {
+		post, err = Unvote(postsRepository, votesRepository, userId, post.ID)
+	}
+
+	return post, nil
+}
+
+/**
+ * @Description: Remove user's vote from the post
+ * @param votesRepository
+ * @param vote
+ * @param post
+ * @return *models.Post
+ * @return error
+ */
+func Unvote(
+	postsRepository repositories.PostsRepository,
+	votesRepository repositories.VotesRepository,
+	userId uint,
+	postId uint,
+) (*models.Post, error) {
+
+	var voteId uint
+	post, err := postsRepository.Get(postId)
+
+	if err != nil {
+		return nil, err
+	}
+
+	for _, vote := range post.Votes {
+		if vote.UserId == userId {
+			voteId = vote.ID
+			_, err := votesRepository.Delete(vote.ID)
+			if err != nil {
+				return nil, err
+			}
+			break
+		}
+	}
+
+	for index, postVote := range post.Votes {
+		if postVote.ID == voteId {
+			post.Votes = append(post.Votes[:index], post.Votes[index+1:]...)
+			break
+		}
+	}
+
+	post.Score = CalculateScore(post.Votes)
+	post.UpvotePercentage = CalculateUpvotePercentage(post.Votes)
+
+	post, err = postsRepository.Update(post, []string{"score", "upvote_percentage"})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return post, nil
 }

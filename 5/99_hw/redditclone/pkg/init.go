@@ -46,6 +46,8 @@ func InitApp() {
 
 	// Votes routes
 	authRouter.HandleFunc("/api/post/{id}/upvote", votesHandler.Upvote).Methods("GET")
+	authRouter.HandleFunc("/api/post/{id}/downvote", votesHandler.Downvote).Methods("GET")
+	authRouter.HandleFunc("/api/post/{id}/unvote", votesHandler.Unvote).Methods("GET")
 
 	authRouter.Use(middleware.AuthCheck)
 

@@ -29,3 +29,20 @@ func (r *VotesRepository) Create(vote *models.Vote) (*models.Vote, error) {
 
 	return vote, nil
 }
+
+/**
+ * @Description: Delete the vote
+ * @receiver r *PostsRepository
+ * @return bool
+ * @return error
+ */
+func (r *VotesRepository) Delete(id uint) (bool, error) {
+
+	db := r.db.Delete(&models.Vote{}, id)
+
+	if err := db.Error; err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
