@@ -9,6 +9,11 @@ import (
 	"time"
 )
 
+type MyCustomClaims struct {
+	jwt.StandardClaims
+	User map[string]string `json:"user"`
+}
+
 /**
  * @Description: Authenticate user
  * @param userId
@@ -61,22 +66,15 @@ func isPasswordCorrect(password, hash string) bool {
  * @return error
  */
 func GenerateJWT(login string, userId uint) (string, error) {
-	type MyCustomClaims struct {
-		User map[string]string `json:"user"`
-		jwt.StandardClaims
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, &jwt.MapClaims{
-		"user": map[string]string{"username": login, "id": strconv.Itoa(int(userId))},
-		"exp":  time.Now().Add(time.Minute * time.Duration(20)).Unix(),
-		"iat":  time.Now().Unix(),
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, &MyCustomClaims{
+		jwt.StandardClaims{
+			ExpiresAt:  time.Now().Add(time.Minute * time.Duration(20)).Unix(),
+			IssuedAt:  time.Now().Unix(),
+		},
+		map[string]string{"username": login, "id": strconv.Itoa(int(userId))},
 	})
 
-	config, err := configs.LoadConfig("configs")
-
-	if err != nil || &config == nil {
-		return "", err
-	}
+	config := configs.Conf
 
 	tokenString, err := token.SignedString([]byte(config.Token))
 
@@ -85,4 +83,35 @@ func GenerateJWT(login string, userId uint) (string, error) {
 	}
 
 	return tokenString, nil
+}
+
+/**
+ * @Description: Check validity of jwt token. And if it's valid return token data
+ * @param inToken
+ * @return *MyCustomClaims
+ * @return error
+ */
+func CheckToken(inToken string) (*MyCustomClaims, error) {
+	config := configs.Conf
+	secret := config.Token
+
+	hashSecretGetter := func(token *jwt.Token) (interface{}, error) {
+		method, ok := token.Method.(*jwt.SigningMethodHMAC)
+		if !ok || method.Alg() != "HS256" {
+			return nil, fmt.Errorf("bad sign method")
+		}
+		return []byte(secret), nil
+	}
+
+	token, err := jwt.ParseWithClaims(inToken, &MyCustomClaims{}, hashSecretGetter)
+	if err != nil || !token.Valid {
+		return nil, fmt.Errorf("bad token")
+	}
+
+	tokenData, ok := token.Claims.(*MyCustomClaims)
+	if !ok {
+		return nil, fmt.Errorf("no payload")
+	}
+
+	return tokenData, nil
 }

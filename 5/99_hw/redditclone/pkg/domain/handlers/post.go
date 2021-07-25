@@ -42,16 +42,14 @@ func (h *PostsHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	// increment views each time a user open the post
 	post.Views++
-	post, _ = h.PostsRepository.Update(post, []string{"views"})
-
-	postSerialized, err := json.Marshal(post)
+	post, err = h.PostsRepository.Update(post, []string{"views"})
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	w.Write(postSerialized)
+	helpers.SerializeAndReturn(w, post)
 }
 
 /**
@@ -68,14 +66,7 @@ func (h *PostsHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	postsSerialized, err := json.Marshal(posts)
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Write(postsSerialized)
+	helpers.SerializeAndReturn(w, posts)
 }
 
 /**
@@ -94,14 +85,7 @@ func (h *PostsHandler) CategoryList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	postsSerialized, err := json.Marshal(posts)
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Write(postsSerialized)
+	helpers.SerializeAndReturn(w, posts)
 }
 
 /**
@@ -127,14 +111,7 @@ func (h *PostsHandler) UserList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	postsSerialized, err := json.Marshal(posts)
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Write(postsSerialized)
+	helpers.SerializeAndReturn(w, posts)
 }
 
 /**
@@ -176,14 +153,7 @@ func (h *PostsHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response, err := json.Marshal(post)
-
-	if err != nil {
-		helpers.JsonError(w, http.StatusBadRequest, "Couldn't serialize the post!")
-		return
-	}
-
-	w.Write(response)
+	helpers.SerializeAndReturn(w, post)
 }
 
 /**
@@ -214,14 +184,7 @@ func (h *PostsHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		message = "error"
 	}
 
-	response, err := json.Marshal(&Message{message})
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Write(response)
+	helpers.SerializeAndReturn(w, &Message{message})
 }
 
 /**
@@ -282,14 +245,7 @@ func (h *PostsHandler) Comment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	postSerialized, err := json.Marshal(post)
-
-	if err != nil {
-		helpers.JsonError(w, http.StatusBadRequest, "Couldn't serialize the post!")
-		return
-	}
-
-	w.Write(postSerialized)
+	helpers.SerializeAndReturn(w, post)
 }
 
 /**
@@ -329,12 +285,5 @@ func (h *PostsHandler) DeleteComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	postSerialized, err := json.Marshal(post)
-
-	if err != nil {
-		helpers.JsonError(w, http.StatusBadRequest, "Couldn't marshal the post!")
-		return
-	}
-
-	w.Write(postSerialized)
+	helpers.SerializeAndReturn(w, post)
 }

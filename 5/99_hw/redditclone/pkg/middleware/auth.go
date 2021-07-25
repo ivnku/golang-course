@@ -2,12 +2,11 @@ package middleware
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"github.com/golang-jwt/jwt"
-	"io"
 	"net/http"
 	"redditclone/configs"
+	"redditclone/pkg/auth"
+	"redditclone/pkg/helpers"
 	"strings"
 )
 
@@ -20,69 +19,37 @@ func AuthCheck(next http.Handler) http.Handler {
 			}
 		}()
 
-		config, err := configs.LoadConfig("configs")
-
-		secret := config.Token
-
 		authHeader := r.Header.Get("Authorization")
 
 		if authHeader == "" {
-			jsonError(w, http.StatusUnauthorized, "No authorization header")
+			helpers.JsonError(w, http.StatusUnauthorized, "No authorization header")
 			return
 		}
 
 		authParts := strings.Split(authHeader, " ")
 
 		if len(authParts) != 2 {
-			jsonError(w, http.StatusUnauthorized, "Invalid authorization header")
+			helpers.JsonError(w, http.StatusUnauthorized, "Invalid authorization header")
 			return
 		}
 
 		if authParts[0] != "Bearer" {
-			jsonError(w, http.StatusUnauthorized, "Invalid authorization header")
+			helpers.JsonError(w, http.StatusUnauthorized, "Invalid authorization header")
 			return
 		}
 
 		inToken := authParts[1]
 
-		hashSecretGetter := func(token *jwt.Token) (interface{}, error) {
-			method, ok := token.Method.(*jwt.SigningMethodHMAC)
-			if !ok || method.Alg() != "HS256" {
-				return nil, fmt.Errorf("bad sign method")
-			}
-			return []byte(secret), nil
-		}
+		tokenData, err := auth.CheckToken(inToken)
 
-		token, err := jwt.Parse(inToken, hashSecretGetter)
-		if err != nil || !token.Valid {
-			jsonError(w, http.StatusUnauthorized, "bad token")
+		if err != nil {
+			helpers.JsonError(w, http.StatusUnauthorized, err.Error())
 			return
 		}
 
-		tokenData, ok := token.Claims.(jwt.MapClaims)
-		if !ok {
-			jsonError(w, http.StatusUnauthorized, "no payload")
-		}
-
-		userData := make(map[string]string)
-		for key, value := range tokenData["user"].(map[string]interface{}) {
-			strKey := fmt.Sprintf("%v", key)
-			strValue := fmt.Sprintf("%v", value)
-
-			userData[strKey] = strValue
-		}
-
 		ctx := r.Context()
-		ctx = context.WithValue(ctx, configs.UserCtx, userData)
+		ctx = context.WithValue(ctx, configs.UserCtx, tokenData.User)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
-}
-
-func jsonError(w io.Writer, status int, msg string) {
-	resp, _ := json.Marshal(map[string]interface{}{
-		"status": status,
-		"error":  msg,
-	})
-	w.Write(resp)
 }

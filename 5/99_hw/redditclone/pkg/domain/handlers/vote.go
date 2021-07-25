@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"github.com/gorilla/mux"
 	"net/http"
 	"redditclone/configs"
@@ -49,14 +48,7 @@ func (h *VotesHandler) Upvote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	postSerialized, err := json.Marshal(post)
-
-	if err != nil {
-		helpers.JsonError(w, http.StatusBadRequest, "Couldn't marshal the post!")
-		return
-	}
-
-	w.Write(postSerialized)
+	helpers.SerializeAndReturn(w, post)
 }
 
 /**
@@ -92,14 +84,7 @@ func (h *VotesHandler) Downvote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	postSerialized, err := json.Marshal(post)
-
-	if err != nil {
-		helpers.JsonError(w, http.StatusBadRequest, "Couldn't marshal the post!")
-		return
-	}
-
-	w.Write(postSerialized)
+	helpers.SerializeAndReturn(w, post)
 }
 
 /**
@@ -135,12 +120,5 @@ func (h *VotesHandler) Unvote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	postSerialized, err := json.Marshal(post)
-
-	if err != nil {
-		helpers.JsonError(w, http.StatusBadRequest, "Couldn't marshal the post!")
-		return
-	}
-
-	w.Write(postSerialized)
+	helpers.SerializeAndReturn(w, post)
 }

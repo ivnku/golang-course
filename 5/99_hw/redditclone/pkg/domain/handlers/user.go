@@ -63,9 +63,7 @@ func (h *UsersHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, _ := json.Marshal(map[string]interface{}{"token": tokenString})
-
-	w.Write(resp)
+	helpers.SerializeAndReturn(w, map[string]interface{}{"token": tokenString})
 }
 
 /**
@@ -103,9 +101,7 @@ func (h *UsersHandler) Auth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, _ := json.Marshal(map[string]interface{}{"token": tokenString})
-
-	w.Write(resp)
+	helpers.SerializeAndReturn(w, map[string]interface{}{"token": tokenString})
 }
 
 /**
@@ -122,13 +118,5 @@ func (h *UsersHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	usersSerialized, err := json.Marshal(users)
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	_, _ = w.Write(usersSerialized)
-	return
+	helpers.SerializeAndReturn(w, users)
 }

@@ -7,6 +7,7 @@ import (
 	"gorm.io/gorm"
 	"log"
 	"net/http"
+	"redditclone/configs"
 	"redditclone/pkg/domain/handlers"
 	"redditclone/pkg/domain/repositories"
 	"redditclone/pkg/middleware"
@@ -15,6 +16,11 @@ import (
 
 func InitApp() {
 	db := InitDb()
+	_, err := configs.LoadConfig("configs")
+
+	if err != nil {
+		panic(err)
+	}
 
 	usersRepo := repositories.NewUsersRepository(db)
 	postsRepo := repositories.NewPostsRepository(db)
