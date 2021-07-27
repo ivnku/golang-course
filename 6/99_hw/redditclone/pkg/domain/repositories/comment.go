@@ -1,16 +1,18 @@
 package repositories
 
 import (
-	"gorm.io/gorm"
+	"go.mongodb.org/mongo-driver/mongo"
 	"redditclone/pkg/domain/models"
 )
 
 type CommentsRepository struct {
-	db *gorm.DB
+	mongodb    *mongo.Client
+	collection *mongo.Collection
 }
 
-func NewCommentsRepository(db *gorm.DB) CommentsRepository {
-	return CommentsRepository{db}
+func NewCommentsRepository(db *mongo.Client) CommentsRepository {
+	collection := db.Database("redditclone").Collection("comments")
+	return CommentsRepository{db, collection}
 }
 
 /**
@@ -21,11 +23,11 @@ func NewCommentsRepository(db *gorm.DB) CommentsRepository {
  * @return error
  */
 func (r *CommentsRepository) Create(postComment *models.Comment) (*models.Comment, error) {
-	db := r.db.Create(postComment)
-
-	if err := db.Error; err != nil {
-		return nil, err
-	}
+	//db := r.db.Create(postComment)
+	//
+	//if err := db.Error; err != nil {
+	//	return nil, err
+	//}
 
 	return postComment, nil
 }
@@ -39,11 +41,11 @@ func (r *CommentsRepository) Create(postComment *models.Comment) (*models.Commen
  */
 func (r *CommentsRepository) Delete(id uint) (bool, error) {
 
-	db := r.db.Delete(&models.Comment{}, id)
-
-	if err := db.Error; err != nil {
-		return false, err
-	}
+	//db := r.db.Delete(&models.Comment{}, id)
+	//
+	//if err := db.Error; err != nil {
+	//	return false, err
+	//}
 
 	return true, nil
 }

@@ -1,8 +1,12 @@
 package pkg
 
 import (
+	"context"
+	"github.com/go-redis/redis/v8"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"log"
@@ -17,16 +21,36 @@ import (
 
 func InitApp() {
 	db := InitDb()
+
+	rdb := redis.NewClient(&redis.Options{Addr: "localhost:6379", Password: "", DB: 0})
+	defer func() {
+		if err := rdb.Close(); err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	mongodb, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27017"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer func() {
+		if err := mongodb.Disconnect(ctx); err != nil {
+			log.Fatal(err)
+		}
+	}()
+
 	config, err := configs.LoadConfig("configs")
-	sessionManager := auth.NewSessionManager(config)
+	sessionManager := auth.NewSessionManager(config, rdb)
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	usersRepo := repositories.NewUsersRepository(db)
-	postsRepo := repositories.NewPostsRepository(db)
-	commentsRepo := repositories.NewCommentsRepository(db)
+	postsRepo := repositories.NewPostsRepository(mongodb)
+	commentsRepo := repositories.NewCommentsRepository(mongodb)
 	votesRepo := repositories.NewVotesRepository(db)
 
 	usersHandler := handlers.UsersHandler{UsersRepository: usersRepo, Config: config, SessionManager: *sessionManager}

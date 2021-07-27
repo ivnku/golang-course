@@ -55,7 +55,7 @@ func CalculateScore(votes []*models.Vote) int {
 func ApplyVote(
 	postsRepository repositories.PostsRepository,
 	votesRepository repositories.VotesRepository,
-	postId uint,
+	postId string,
 	userId uint,
 	voteValue int,
 ) (*models.Post, error) {
@@ -97,7 +97,7 @@ func ApplyVote(
 			return post, err
 		}
 	} else {
-		post, err = Unvote(postsRepository, votesRepository, userId, post.ID)
+		//post, err = Unvote(postsRepository, votesRepository, userId, post.ID)
 	}
 
 	return post, nil
@@ -115,7 +115,7 @@ func Unvote(
 	postsRepository repositories.PostsRepository,
 	votesRepository repositories.VotesRepository,
 	userId uint,
-	postId uint,
+	postId string,
 ) (*models.Post, error) {
 
 	var voteId uint

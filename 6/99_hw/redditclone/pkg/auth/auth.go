@@ -1,7 +1,9 @@
 package auth
 
 import (
+	"context"
 	"fmt"
+	"github.com/go-redis/redis/v8"
 	"github.com/golang-jwt/jwt"
 	"golang.org/x/crypto/bcrypt"
 	"redditclone/configs"
@@ -9,8 +11,11 @@ import (
 	"time"
 )
 
+var ctx = context.Background()
+
 type SessionManager struct {
 	User   UserData
+	Rdb    *redis.Client
 	config configs.Config
 }
 
@@ -30,9 +35,10 @@ type UserData struct {
  * @param config
  * @return *SessionManager
  */
-func NewSessionManager(config configs.Config) *SessionManager {
+func NewSessionManager(config configs.Config, rdb *redis.Client) *SessionManager {
 	return &SessionManager{
 		config: config,
+		Rdb:    rdb,
 	}
 }
 
@@ -55,9 +61,13 @@ func (sm *SessionManager) Auth(userId uint, login, password string) (string, err
 		return "", fmt.Errorf("password is incorrect")
 	}
 
-	sm.CreateSession()
+	token, err := sm.CreateSession(login, userId)
 
-	return sm.GenerateJWT(login, userId)
+	if err != nil {
+		return "", fmt.Errorf("couldn't create session")
+	}
+
+	return token, nil
 }
 
 /**
@@ -125,8 +135,8 @@ func (sm *SessionManager) CheckToken(inToken string) (*MyCustomClaims, error) {
 	}
 
 	token, err := jwt.ParseWithClaims(inToken, &MyCustomClaims{}, hashSecretGetter)
-	if err != nil || !token.Valid {
-		return nil, fmt.Errorf("bad token")
+	if err != nil {
+		return nil, fmt.Errorf("couldn't parse token: " + err.Error())
 	}
 
 	tokenData, ok := token.Claims.(*MyCustomClaims)
@@ -134,9 +144,29 @@ func (sm *SessionManager) CheckToken(inToken string) (*MyCustomClaims, error) {
 		return nil, fmt.Errorf("no payload")
 	}
 
+	if !token.Valid {
+		sm.Rdb.Del(ctx, tokenData.User.Id)
+		return nil, fmt.Errorf("bad token")
+	}
+
 	return tokenData, nil
 }
 
-func (sm *SessionManager) CreateSession() {
-	// TODO put token in redis
+/**
+ * @Description: Generate a jwt token and create a session with its value
+ * @receiver sm
+ * @param login
+ * @param userId
+ * @return token
+ * @return err
+ */
+func (sm *SessionManager) CreateSession(login string, userId uint) (token string, err error) {
+	token, err = sm.GenerateJWT(login, userId)
+
+	if err != nil {
+		return token, fmt.Errorf("couldn't create token string")
+	}
+
+	sm.Rdb.Set(ctx, strconv.Itoa(int(userId)), token, 0)
+	return
 }

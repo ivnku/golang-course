@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"github.com/gorilla/mux"
+	"go.mongodb.org/mongo-driver/mongo"
 	"net/http"
 	"redditclone/configs"
 	"redditclone/pkg/domain/models"
@@ -17,6 +18,7 @@ type PostsHandler struct {
 	CommentsRepository repositories.CommentsRepository
 	UsersRepository    repositories.UsersRepository
 	Config             configs.Config
+	Mongodb            *mongo.Client
 }
 
 /**
@@ -27,14 +29,8 @@ type PostsHandler struct {
  */
 func (h *PostsHandler) Get(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
-	id, err := strconv.ParseUint(params["id"], 10, 0)
 
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	post, err := h.PostsRepository.Get(uint(id))
+	post, err := h.PostsRepository.Get(params["id"])
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -42,13 +38,13 @@ func (h *PostsHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// increment views each time a user open the post
-	post.Views++
-	post, err = h.PostsRepository.Update(post, []string{"views"})
+	//post.Views++
+	//post, err = h.PostsRepository.Update(post, []string{"views"})
 
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	//if err != nil {
+	//	http.Error(w, err.Error(), http.StatusInternalServerError)
+	//	return
+	//}
 
 	helpers.SerializeAndReturn(w, post)
 }
@@ -220,17 +216,10 @@ func (h *PostsHandler) Comment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	postId, err := strconv.ParseUint(routeParams["id"], 10, 0)
-
-	if err != nil {
-		helpers.JsonError(w, http.StatusBadRequest, "Couldn't convert postId to uint!")
-		return
-	}
-
 	postComment.UserID = uint(userId)
 	postComment.Body = reqComment.Comment
 	postComment.Created = time.Now().Format("2006-01-02 15:04:05")
-	postComment.PostID = uint(postId)
+	postComment.PostID = routeParams["id"]
 
 	postComment, err = h.CommentsRepository.Create(postComment)
 
@@ -239,7 +228,7 @@ func (h *PostsHandler) Comment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	post, err := h.PostsRepository.Get(uint(postId))
+	post, err := h.PostsRepository.Get(routeParams["id"])
 
 	if err != nil {
 		helpers.JsonError(w, http.StatusBadRequest, "Couldn't get the post!")
@@ -265,13 +254,6 @@ func (h *PostsHandler) DeleteComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	postId, err := strconv.ParseUint(routeParams["postId"], 10, 0)
-
-	if err != nil {
-		helpers.JsonError(w, http.StatusBadRequest, "Couldn't convert postId to uint!")
-		return
-	}
-
 	_, err = h.CommentsRepository.Delete(uint(commentId))
 
 	if err != nil {
@@ -279,7 +261,7 @@ func (h *PostsHandler) DeleteComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	post, err := h.PostsRepository.Get(uint(postId))
+	post, err := h.PostsRepository.Get(routeParams["postId"])
 
 	if err != nil {
 		helpers.JsonError(w, http.StatusBadRequest, "Couldn't get the post!")

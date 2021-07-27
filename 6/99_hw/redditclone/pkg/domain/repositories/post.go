@@ -1,16 +1,22 @@
 package repositories
 
 import (
-	"gorm.io/gorm"
+	"context"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 	"redditclone/pkg/domain/models"
 )
 
+var ctx = context.Background()
+
 type PostsRepository struct {
-	db *gorm.DB
+	db         *mongo.Client
+	collection *mongo.Collection
 }
 
-func NewPostsRepository(db *gorm.DB) PostsRepository {
-	return PostsRepository{db}
+func NewPostsRepository(db *mongo.Client) PostsRepository {
+	collection := db.Database("redditclone").Collection("posts")
+	return PostsRepository{db, collection}
 }
 
 /**
@@ -21,11 +27,11 @@ func NewPostsRepository(db *gorm.DB) PostsRepository {
  * @return error
  */
 func (r *PostsRepository) Create(post *models.Post) (*models.Post, error) {
-	db := r.db.Create(post)
-
-	if err := db.Error; err != nil {
-		return nil, err
-	}
+	//db := r.db.Create(post)
+	//
+	//if err := db.Error; err != nil {
+	//	return nil, err
+	//}
 
 	return post, nil
 }
@@ -38,16 +44,16 @@ func (r *PostsRepository) Create(post *models.Post) (*models.Post, error) {
  * @return error
  */
 func (r *PostsRepository) Update(post *models.Post, fields []string) (*models.Post, error) {
-	var db *gorm.DB
-	if fields != nil {
-		db = r.db.Model(post).Select(fields).Updates(post)
-	} else {
-		db = r.db.Save(post)
-	}
-
-	if err := db.Error; err != nil {
-		return post, err
-	}
+	//var db *gorm.DB
+	//if fields != nil {
+	//	db = r.db.Model(post).Select(fields).Updates(post)
+	//} else {
+	//	db = r.db.Save(post)
+	//}
+	//
+	//if err := db.Error; err != nil {
+	//	return post, err
+	//}
 
 	return post, nil
 }
@@ -59,12 +65,19 @@ func (r *PostsRepository) Update(post *models.Post, fields []string) (*models.Po
  * @return *Post
  * @return error
  */
-func (r *PostsRepository) Get(id uint) (*models.Post, error) {
+func (r *PostsRepository) Get(id string) (*models.Post, error) {
 	var post *models.Post
 
-	db := r.db.Preload("Comments.User").Preload("Votes").Joins("User").First(&post, id)
+	//db := r.db.Preload("Comments.User").Preload("Votes").Joins("User").First(&post, id)
+	//
+	//if err := db.Error; err != nil {
+	//	return post, err
+	//}
+	result := r.collection.FindOne(ctx, bson.D{{"_id", id}})
 
-	if err := db.Error; err != nil {
+	err := result.Decode(&post)
+
+	if err != nil {
 		return post, err
 	}
 
@@ -80,9 +93,21 @@ func (r *PostsRepository) Get(id uint) (*models.Post, error) {
 func (r *PostsRepository) List() ([]*models.Post, error) {
 	var posts []*models.Post
 
-	db := r.db.Preload("Comments.User").Preload("Votes").Joins("User").Find(&posts)
+	//db := r.db.Preload("Comments.User").Preload("Votes").Joins("User").Find(&posts)
+	//
+	//if err := db.Error; err != nil {
+	//	return posts, err
+	//}
 
-	if err := db.Error; err != nil {
+	cursor, err := r.collection.Find(ctx, bson.M{})
+
+	if  err != nil {
+		return posts, err
+	}
+
+	err = cursor.All(ctx, &posts)
+
+	if  err != nil {
 		return posts, err
 	}
 
@@ -99,11 +124,11 @@ func (r *PostsRepository) List() ([]*models.Post, error) {
 func (r *PostsRepository) CategoryList(categoryName string) ([]*models.Post, error) {
 	var posts []*models.Post
 
-	db := r.db.Preload("Comments.User").Preload("Votes").Joins("User").Find(&posts, "category = ?", categoryName)
-
-	if err := db.Error; err != nil {
-		return posts, err
-	}
+	//db := r.db.Preload("Comments.User").Preload("Votes").Joins("User").Find(&posts, "category = ?", categoryName)
+	//
+	//if err := db.Error; err != nil {
+	//	return posts, err
+	//}
 
 	return posts, nil
 }
@@ -118,11 +143,11 @@ func (r *PostsRepository) CategoryList(categoryName string) ([]*models.Post, err
 func (r *PostsRepository) UserList(userId uint) ([]*models.Post, error) {
 	var posts []*models.Post
 
-	db := r.db.Preload("Comments.User").Preload("Votes").Joins("User").Find(&posts, "user_id = ?", userId)
-
-	if err := db.Error; err != nil {
-		return posts, err
-	}
+	//db := r.db.Preload("Comments.User").Preload("Votes").Joins("User").Find(&posts, "user_id = ?", userId)
+	//
+	//if err := db.Error; err != nil {
+	//	return posts, err
+	//}
 
 	return posts, nil
 }
@@ -135,11 +160,11 @@ func (r *PostsRepository) UserList(userId uint) ([]*models.Post, error) {
  */
 func (r *PostsRepository) Delete(id uint) (bool, error) {
 
-	db := r.db.Delete(&models.Post{}, id)
-
-	if err := db.Error; err != nil {
-		return false, err
-	}
+	//db := r.db.Delete(&models.Post{}, id)
+	//
+	//if err := db.Error; err != nil {
+	//	return false, err
+	//}
 
 	return true, nil
 }

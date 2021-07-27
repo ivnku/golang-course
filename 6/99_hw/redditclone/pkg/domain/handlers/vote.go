@@ -25,13 +25,6 @@ type VotesHandler struct {
 func (h *VotesHandler) Upvote(w http.ResponseWriter, r *http.Request) {
 	routeParams := mux.Vars(r)
 
-	postId, err := strconv.ParseUint(routeParams["id"], 10, 0)
-
-	if err != nil {
-		helpers.JsonError(w, http.StatusBadRequest, "Couldn't convert postId to uint!")
-		return
-	}
-
 	ctx := r.Context()
 	user := ctx.Value(configs.UserCtx).(map[string]string)
 
@@ -42,7 +35,7 @@ func (h *VotesHandler) Upvote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	post, err := votes.ApplyVote(h.PostsRepository, h.VotesRepository, uint(postId), uint(userId), 1)
+	post, err := votes.ApplyVote(h.PostsRepository, h.VotesRepository, routeParams["id"], uint(userId), 1)
 
 	if err != nil {
 		helpers.JsonError(w, http.StatusBadRequest, "Couldn't apply the vote!")
@@ -61,13 +54,6 @@ func (h *VotesHandler) Upvote(w http.ResponseWriter, r *http.Request) {
 func (h *VotesHandler) Downvote(w http.ResponseWriter, r *http.Request) {
 	routeParams := mux.Vars(r)
 
-	postId, err := strconv.ParseUint(routeParams["id"], 10, 0)
-
-	if err != nil {
-		helpers.JsonError(w, http.StatusBadRequest, "Couldn't convert postId to uint!")
-		return
-	}
-
 	ctx := r.Context()
 	user := ctx.Value(configs.UserCtx).(map[string]string)
 
@@ -78,7 +64,7 @@ func (h *VotesHandler) Downvote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	post, err := votes.ApplyVote(h.PostsRepository, h.VotesRepository, uint(postId), uint(userId), -1)
+	post, err := votes.ApplyVote(h.PostsRepository, h.VotesRepository, routeParams["id"], uint(userId), -1)
 
 	if err != nil {
 		helpers.JsonError(w, http.StatusBadRequest, "Couldn't apply the vote!")
@@ -97,13 +83,6 @@ func (h *VotesHandler) Downvote(w http.ResponseWriter, r *http.Request) {
 func (h *VotesHandler) Unvote(w http.ResponseWriter, r *http.Request) {
 	routeParams := mux.Vars(r)
 
-	postId, err := strconv.ParseUint(routeParams["id"], 10, 0)
-
-	if err != nil {
-		helpers.JsonError(w, http.StatusBadRequest, "Couldn't convert postId to uint!")
-		return
-	}
-
 	ctx := r.Context()
 	user := ctx.Value(configs.UserCtx).(map[string]string)
 
@@ -114,7 +93,7 @@ func (h *VotesHandler) Unvote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	post, err := votes.Unvote(h.PostsRepository, h.VotesRepository, uint(userId), uint(postId))
+	post, err := votes.Unvote(h.PostsRepository, h.VotesRepository, uint(userId), routeParams["id"])
 
 	if err != nil {
 		helpers.JsonError(w, http.StatusBadRequest, "Couldn't apply the vote!")
