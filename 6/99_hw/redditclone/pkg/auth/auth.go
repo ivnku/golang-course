@@ -9,9 +9,31 @@ import (
 	"time"
 )
 
+type SessionManager struct {
+	User   UserData
+	config configs.Config
+}
+
 type MyCustomClaims struct {
 	jwt.StandardClaims
-	User map[string]string `json:"user"`
+	User UserData `json:"user"`
+}
+
+type UserData struct {
+	Id       string `json:"id"`
+	Username string `json:"username"`
+}
+
+/**
+ * @Description: Constructor for the SessionManager
+ * @receiver sm
+ * @param config
+ * @return *SessionManager
+ */
+func NewSessionManager(config configs.Config) *SessionManager {
+	return &SessionManager{
+		config: config,
+	}
 }
 
 /**
@@ -22,18 +44,20 @@ type MyCustomClaims struct {
  * @return string
  * @return error
  */
-func Auth(userId uint, login, password string) (string, error) {
-	passwordHash, err := HashPassword(password)
+func (sm *SessionManager) Auth(userId uint, login, password string) (string, error) {
+	passwordHash, err := sm.HashPassword(password)
 
 	if err != nil {
 		return "", err
 	}
 
-	if !isPasswordCorrect(password, passwordHash) {
+	if !sm.isPasswordCorrect(password, passwordHash) {
 		return "", fmt.Errorf("password is incorrect")
 	}
 
-	return GenerateJWT(login, userId)
+	sm.CreateSession()
+
+	return sm.GenerateJWT(login, userId)
 }
 
 /**
@@ -42,7 +66,7 @@ func Auth(userId uint, login, password string) (string, error) {
  * @return string
  * @return error
  */
-func HashPassword(password string) (string, error) {
+func (sm *SessionManager) HashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 	return string(bytes), err
 }
@@ -53,7 +77,7 @@ func HashPassword(password string) (string, error) {
  * @param hash
  * @return bool
  */
-func isPasswordCorrect(password, hash string) bool {
+func (sm *SessionManager) isPasswordCorrect(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
 }
@@ -65,18 +89,16 @@ func isPasswordCorrect(password, hash string) bool {
  * @return string
  * @return error
  */
-func GenerateJWT(login string, userId uint) (string, error) {
+func (sm *SessionManager) GenerateJWT(login string, userId uint) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, &MyCustomClaims{
 		jwt.StandardClaims{
-			ExpiresAt:  time.Now().Add(time.Minute * time.Duration(20)).Unix(),
+			ExpiresAt: time.Now().Add(time.Minute * time.Duration(20)).Unix(),
 			IssuedAt:  time.Now().Unix(),
 		},
-		map[string]string{"username": login, "id": strconv.Itoa(int(userId))},
+		UserData{strconv.Itoa(int(userId)), login},
 	})
 
-	config := configs.Conf
-
-	tokenString, err := token.SignedString([]byte(config.Token))
+	tokenString, err := token.SignedString([]byte(sm.config.Token))
 
 	if err != nil {
 		return "", err
@@ -91,9 +113,8 @@ func GenerateJWT(login string, userId uint) (string, error) {
  * @return *MyCustomClaims
  * @return error
  */
-func CheckToken(inToken string) (*MyCustomClaims, error) {
-	config := configs.Conf
-	secret := config.Token
+func (sm *SessionManager) CheckToken(inToken string) (*MyCustomClaims, error) {
+	secret := sm.config.Token
 
 	hashSecretGetter := func(token *jwt.Token) (interface{}, error) {
 		method, ok := token.Method.(*jwt.SigningMethodHMAC)
@@ -114,4 +135,8 @@ func CheckToken(inToken string) (*MyCustomClaims, error) {
 	}
 
 	return tokenData, nil
+}
+
+func (sm *SessionManager) CreateSession() {
+	// TODO put token in redis
 }

@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"redditclone/configs"
+	"redditclone/pkg/auth"
 	"redditclone/pkg/domain/handlers"
 	"redditclone/pkg/domain/repositories"
 	"redditclone/pkg/middleware"
@@ -16,10 +17,11 @@ import (
 
 func InitApp() {
 	db := InitDb()
-	_, err := configs.LoadConfig("configs")
+	config, err := configs.LoadConfig("configs")
+	sessionManager := auth.NewSessionManager(config)
 
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	usersRepo := repositories.NewUsersRepository(db)
@@ -27,9 +29,9 @@ func InitApp() {
 	commentsRepo := repositories.NewCommentsRepository(db)
 	votesRepo := repositories.NewVotesRepository(db)
 
-	usersHandler := handlers.UsersHandler{UsersRepository: usersRepo}
-	postsHandler := handlers.PostsHandler{PostsRepository: postsRepo, CommentsRepository: commentsRepo, UsersRepository: usersRepo}
-	votesHandler := handlers.VotesHandler{VotesRepository: votesRepo, PostsRepository: postsRepo}
+	usersHandler := handlers.UsersHandler{UsersRepository: usersRepo, Config: config, SessionManager: *sessionManager}
+	postsHandler := handlers.PostsHandler{PostsRepository: postsRepo, CommentsRepository: commentsRepo, UsersRepository: usersRepo, Config: config}
+	votesHandler := handlers.VotesHandler{VotesRepository: votesRepo, PostsRepository: postsRepo, Config: config}
 
 	router := mux.NewRouter()
 	authRouter := router.PathPrefix("/").Subrouter()
@@ -55,7 +57,7 @@ func InitApp() {
 	authRouter.HandleFunc("/api/post/{id}/downvote", votesHandler.Downvote).Methods("GET")
 	authRouter.HandleFunc("/api/post/{id}/unvote", votesHandler.Unvote).Methods("GET")
 
-	authRouter.Use(middleware.AuthCheck)
+	authRouter.Use(middleware.AuthCheck(*sessionManager))
 
 	router.PathPrefix("/").Handler(http.FileServer(http.Dir("./template")))
 

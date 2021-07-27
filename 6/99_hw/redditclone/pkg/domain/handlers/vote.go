@@ -13,6 +13,7 @@ import (
 type VotesHandler struct {
 	VotesRepository repositories.VotesRepository
 	PostsRepository repositories.PostsRepository
+	Config          configs.Config
 }
 
 /**

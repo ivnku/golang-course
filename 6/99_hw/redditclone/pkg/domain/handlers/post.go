@@ -16,6 +16,7 @@ type PostsHandler struct {
 	PostsRepository    repositories.PostsRepository
 	CommentsRepository repositories.CommentsRepository
 	UsersRepository    repositories.UsersRepository
+	Config             configs.Config
 }
 
 /**

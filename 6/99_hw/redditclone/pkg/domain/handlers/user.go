@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"redditclone/configs"
 	"redditclone/pkg/auth"
 	"redditclone/pkg/domain/models"
 	"redditclone/pkg/domain/repositories"
@@ -11,6 +12,8 @@ import (
 
 type UsersHandler struct {
 	UsersRepository repositories.UsersRepository
+	Config          configs.Config
+	SessionManager  auth.SessionManager
 }
 
 /**
@@ -41,7 +44,7 @@ func (h *UsersHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	passwordHash, err := auth.HashPassword(data.Password)
+	passwordHash, err := h.SessionManager.HashPassword(data.Password)
 
 	if err != nil {
 		helpers.JsonError(w, http.StatusBadRequest, "Couldn't hash the password!")
@@ -56,7 +59,7 @@ func (h *UsersHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tokenString, err := auth.GenerateJWT(data.Login, userId)
+	tokenString, err := h.SessionManager.GenerateJWT(data.Login, userId)
 
 	if err != nil {
 		helpers.JsonError(w, http.StatusInternalServerError, "Couldn't create tokenString: "+err.Error())
@@ -94,7 +97,7 @@ func (h *UsersHandler) Auth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tokenString, err := auth.Auth(user.ID, user.Name, user.Password)
+	tokenString, err := h.SessionManager.Auth(user.ID, user.Name, user.Password)
 
 	if err != nil {
 		helpers.JsonError(w, http.StatusInternalServerError, "Couldn't Authenticate user: "+err.Error())

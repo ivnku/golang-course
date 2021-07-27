@@ -6,8 +6,6 @@ type Config struct {
 	Token string `mapstructure:"TOKEN"`
 }
 
-var Conf Config
-
 func LoadConfig(path string) (config Config, err error) {
 	viper.AddConfigPath(path)
 	viper.SetConfigName("app")
@@ -21,8 +19,6 @@ func LoadConfig(path string) (config Config, err error) {
 	}
 
 	err = viper.Unmarshal(&config)
-
-	Conf = config
 
 	return
 }
