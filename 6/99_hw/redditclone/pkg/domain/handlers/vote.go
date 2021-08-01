@@ -4,6 +4,7 @@ import (
 	"github.com/gorilla/mux"
 	"net/http"
 	"redditclone/configs"
+	"redditclone/pkg/auth"
 	"redditclone/pkg/domain/repositories"
 	"redditclone/pkg/domain/services/votes"
 	"redditclone/pkg/helpers"
@@ -26,9 +27,9 @@ func (h *VotesHandler) Upvote(w http.ResponseWriter, r *http.Request) {
 	routeParams := mux.Vars(r)
 
 	ctx := r.Context()
-	user := ctx.Value(configs.UserCtx).(map[string]string)
+	user := ctx.Value(configs.UserCtx).(auth.UserData)
 
-	userId, err := strconv.ParseUint(user["id"], 10, 0)
+	userId, err := strconv.ParseUint(user.Id, 10, 0)
 
 	if err != nil {
 		helpers.JsonError(w, http.StatusBadRequest, "Couldn't convert userId to uint!")
@@ -55,9 +56,9 @@ func (h *VotesHandler) Downvote(w http.ResponseWriter, r *http.Request) {
 	routeParams := mux.Vars(r)
 
 	ctx := r.Context()
-	user := ctx.Value(configs.UserCtx).(map[string]string)
+	user := ctx.Value(configs.UserCtx).(auth.UserData)
 
-	userId, err := strconv.ParseUint(user["id"], 10, 0)
+	userId, err := strconv.ParseUint(user.Id, 10, 0)
 
 	if err != nil {
 		helpers.JsonError(w, http.StatusBadRequest, "Couldn't convert userId to uint!")
@@ -84,9 +85,9 @@ func (h *VotesHandler) Unvote(w http.ResponseWriter, r *http.Request) {
 	routeParams := mux.Vars(r)
 
 	ctx := r.Context()
-	user := ctx.Value(configs.UserCtx).(map[string]string)
+	user := ctx.Value(configs.UserCtx).(auth.UserData)
 
-	userId, err := strconv.ParseUint(user["id"], 10, 0)
+	userId, err := strconv.ParseUint(user.Id, 10, 0)
 
 	if err != nil {
 		helpers.JsonError(w, http.StatusBadRequest, "Couldn't convert userId to uint!")

@@ -51,7 +51,7 @@ func InitApp() {
 	usersRepo := repositories.NewUsersRepository(db)
 	postsRepo := repositories.NewPostsRepository(mongodb)
 	commentsRepo := repositories.NewCommentsRepository(mongodb)
-	votesRepo := repositories.NewVotesRepository(db)
+	votesRepo := repositories.NewVotesRepository(mongodb)
 
 	usersHandler := handlers.UsersHandler{UsersRepository: usersRepo, Config: config, SessionManager: *sessionManager}
 	postsHandler := handlers.PostsHandler{PostsRepository: postsRepo, CommentsRepository: commentsRepo, UsersRepository: usersRepo, Config: config}

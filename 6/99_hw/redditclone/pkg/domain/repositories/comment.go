@@ -1,6 +1,9 @@
 package repositories
 
 import (
+	"context"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"redditclone/pkg/domain/models"
 )
@@ -23,11 +26,15 @@ func NewCommentsRepository(db *mongo.Client) CommentsRepository {
  * @return error
  */
 func (r *CommentsRepository) Create(postComment *models.Comment) (*models.Comment, error) {
-	//db := r.db.Create(postComment)
-	//
-	//if err := db.Error; err != nil {
-	//	return nil, err
-	//}
+	var ctx = context.Background()
+	postComment.ID = primitive.NewObjectID()
+	result, err := r.collection.InsertOne(ctx, postComment)
+
+	if err != nil {
+		return nil, err
+	}
+
+	postComment.ID = result.InsertedID.(primitive.ObjectID)
 
 	return postComment, nil
 }
@@ -39,13 +46,19 @@ func (r *CommentsRepository) Create(postComment *models.Comment) (*models.Commen
  * @return bool
  * @return error
  */
-func (r *CommentsRepository) Delete(id uint) (bool, error) {
+func (r *CommentsRepository) Delete(id string) (bool, error) {
+	var ctx = context.Background()
+	commentId, err := primitive.ObjectIDFromHex(id)
 
-	//db := r.db.Delete(&models.Comment{}, id)
-	//
-	//if err := db.Error; err != nil {
-	//	return false, err
-	//}
+	if err != nil {
+		return false, err
+	}
+
+	_, err = r.collection.DeleteOne(ctx, bson.M{"_id": commentId})
+
+	if err != nil {
+		return false, err
+	}
 
 	return true, nil
 }

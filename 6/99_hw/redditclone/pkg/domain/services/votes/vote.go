@@ -1,6 +1,7 @@
 package votes
 
 import (
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"redditclone/pkg/domain/models"
 	"redditclone/pkg/domain/repositories"
 )
@@ -76,7 +77,8 @@ func ApplyVote(
 
 	if isAbleToVote {
 		vote := &models.Vote{
-			PostId: postId,
+			ID: primitive.NewObjectID(),
+			PostId: post.ID,
 			UserId: userId,
 			Vote:   voteValue,
 		}
@@ -91,13 +93,16 @@ func ApplyVote(
 		post.UpvotePercentage = CalculateUpvotePercentage(post.Votes)
 		post.Score = CalculateScore(post.Votes)
 
-		post, err = postsRepository.Update(post, []string{"upvote_percentage", "score"})
+		post, err = postsRepository.Update(post, []primitive.E{
+			{"upvote_percentage", post.UpvotePercentage},
+			{"score", post.Score},
+		})
 
 		if err != nil {
 			return post, err
 		}
 	} else {
-		//post, err = Unvote(postsRepository, votesRepository, userId, post.ID)
+		post, err = Unvote(postsRepository, votesRepository, userId, post.ID.String())
 	}
 
 	return post, nil
@@ -118,7 +123,7 @@ func Unvote(
 	postId string,
 ) (*models.Post, error) {
 
-	var voteId uint
+	var voteId primitive.ObjectID
 	post, err := postsRepository.Get(postId)
 
 	if err != nil {
@@ -146,7 +151,10 @@ func Unvote(
 	post.Score = CalculateScore(post.Votes)
 	post.UpvotePercentage = CalculateUpvotePercentage(post.Votes)
 
-	post, err = postsRepository.Update(post, []string{"score", "upvote_percentage"})
+	post, err = postsRepository.Update(post, []primitive.E{
+		{"upvote_percentage", post.UpvotePercentage},
+		{"score", post.Score},
+	})
 
 	if err != nil {
 		return nil, err

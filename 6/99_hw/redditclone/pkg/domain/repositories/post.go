@@ -3,11 +3,10 @@ package repositories
 import (
 	"context"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"redditclone/pkg/domain/models"
 )
-
-var ctx = context.Background()
 
 type PostsRepository struct {
 	db         *mongo.Client
@@ -27,11 +26,15 @@ func NewPostsRepository(db *mongo.Client) PostsRepository {
  * @return error
  */
 func (r *PostsRepository) Create(post *models.Post) (*models.Post, error) {
-	//db := r.db.Create(post)
-	//
-	//if err := db.Error; err != nil {
-	//	return nil, err
-	//}
+	var ctx = context.Background()
+	post.ID = primitive.NewObjectID()
+	result, err := r.collection.InsertOne(ctx, post)
+
+	if err != nil {
+		return nil, err
+	}
+
+	post.ID = result.InsertedID.(primitive.ObjectID)
 
 	return post, nil
 }
@@ -43,17 +46,22 @@ func (r *PostsRepository) Create(post *models.Post) (*models.Post, error) {
  * @return *Post
  * @return error
  */
-func (r *PostsRepository) Update(post *models.Post, fields []string) (*models.Post, error) {
-	//var db *gorm.DB
-	//if fields != nil {
-	//	db = r.db.Model(post).Select(fields).Updates(post)
-	//} else {
-	//	db = r.db.Save(post)
-	//}
-	//
-	//if err := db.Error; err != nil {
-	//	return post, err
-	//}
+func (r *PostsRepository) Update(post *models.Post, fields []primitive.E) (*models.Post, error) {
+	var ctx = context.Background()
+	fieldsToUpdate := bson.D{}
+	for _, field := range fields {
+		fieldsToUpdate = append(fieldsToUpdate, primitive.E{Key: "$set", Value: bson.D{field}})
+	}
+
+	_, err := r.collection.UpdateOne(
+		ctx,
+		bson.M{"_id": post.ID},
+		fieldsToUpdate,
+	)
+
+	if err != nil {
+		return post, err
+	}
 
 	return post, nil
 }
@@ -66,22 +74,46 @@ func (r *PostsRepository) Update(post *models.Post, fields []string) (*models.Po
  * @return error
  */
 func (r *PostsRepository) Get(id string) (*models.Post, error) {
-	var post *models.Post
+	var ctx = context.Background()
+	postId, err := primitive.ObjectIDFromHex(id)
 
-	//db := r.db.Preload("Comments.User").Preload("Votes").Joins("User").First(&post, id)
-	//
-	//if err := db.Error; err != nil {
-	//	return post, err
-	//}
-	result := r.collection.FindOne(ctx, bson.D{{"_id", id}})
-
-	err := result.Decode(&post)
-
-	if err != nil {
-		return post, err
+	qry := []bson.M{
+		{
+			"$match": bson.M{
+				"_id": postId,
+			},
+		},
+		{"$lookup": bson.M{
+				"from":         "comments", // Child collection to join
+				"localField":   "_id",      // Parent collection reference holding field
+				"foreignField": "post_id",  // Child collection reference field
+				"as":           "comments", // Arbitrary field name to store result set
+		}},
+		{"$lookup": bson.M{
+			"from":         "votes",
+			"localField":   "_id",
+			"foreignField": "post_id",
+			"as":           "votes",
+		}},
 	}
 
-	return post, nil
+	if err != nil {
+		return nil, err
+	}
+
+	cur, err := r.collection.Aggregate(ctx, qry)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var posts []*models.Post
+	if err := cur.All(context.Background(), &posts); err != nil {
+		return nil, err
+	}
+	defer cur.Close(ctx)
+
+	return posts[0], nil
 }
 
 /**
@@ -91,25 +123,34 @@ func (r *PostsRepository) Get(id string) (*models.Post, error) {
  * @return error
  */
 func (r *PostsRepository) List() ([]*models.Post, error) {
+	var ctx = context.Background()
 	var posts []*models.Post
 
-	//db := r.db.Preload("Comments.User").Preload("Votes").Joins("User").Find(&posts)
-	//
-	//if err := db.Error; err != nil {
-	//	return posts, err
-	//}
+	qry := []bson.M{
+		{"$lookup": bson.M{
+			"from":         "comments", // Child collection to join
+			"localField":   "_id",      // Parent collection reference holding field
+			"foreignField": "post_id",  // Child collection reference field
+			"as":           "comments", // Arbitrary field name to store result set
+		}},
+		{"$lookup": bson.M{
+			"from":         "votes",
+			"localField":   "_id",
+			"foreignField": "post_id",
+			"as":           "votes",
+		}},
+	}
 
-	cursor, err := r.collection.Find(ctx, bson.M{})
+	cur, err := r.collection.Aggregate(ctx, qry)
 
-	if  err != nil {
+	if err != nil {
 		return posts, err
 	}
 
-	err = cursor.All(ctx, &posts)
-
-	if  err != nil {
-		return posts, err
+	if err := cur.All(context.Background(), &posts); err != nil {
+		return nil, err
 	}
+	defer cur.Close(ctx)
 
 	return posts, nil
 }
@@ -122,13 +163,37 @@ func (r *PostsRepository) List() ([]*models.Post, error) {
  * @return error
  */
 func (r *PostsRepository) CategoryList(categoryName string) ([]*models.Post, error) {
+	var ctx = context.Background()
 	var posts []*models.Post
 
-	//db := r.db.Preload("Comments.User").Preload("Votes").Joins("User").Find(&posts, "category = ?", categoryName)
-	//
-	//if err := db.Error; err != nil {
-	//	return posts, err
-	//}
+	qry := []bson.M{
+		{"$match": bson.M{"category": categoryName}},
+		{"$lookup": bson.M{
+			"from":         "comments",
+			"localField":   "_id",
+			"foreignField": "post_id",
+			"as":           "comments",
+		},
+		},
+		{"$lookup": bson.M{
+			"from":         "votes",
+			"localField":   "_id",
+			"foreignField": "post_id",
+			"as":           "votes",
+		},
+		},
+	}
+
+	cur, err := r.collection.Aggregate(ctx, qry)
+
+	if err != nil {
+		return posts, err
+	}
+
+	if err := cur.All(context.Background(), &posts); err != nil {
+		return nil, err
+	}
+	defer cur.Close(ctx)
 
 	return posts, nil
 }
@@ -141,13 +206,35 @@ func (r *PostsRepository) CategoryList(categoryName string) ([]*models.Post, err
  * @return error
  */
 func (r *PostsRepository) UserList(userId uint) ([]*models.Post, error) {
+	var ctx = context.Background()
 	var posts []*models.Post
 
-	//db := r.db.Preload("Comments.User").Preload("Votes").Joins("User").Find(&posts, "user_id = ?", userId)
-	//
-	//if err := db.Error; err != nil {
-	//	return posts, err
-	//}
+	qry := []bson.M{
+		{"$match": bson.M{"user.id": userId}},
+		{"$lookup": bson.M{
+			"from":         "comments",
+			"localField":   "_id",
+			"foreignField": "post_id",
+			"as":           "comments",
+		}},
+		{"$lookup": bson.M{
+			"from":         "votes",
+			"localField":   "_id",
+			"foreignField": "post_id",
+			"as":           "votes",
+		}},
+	}
+
+	cur, err := r.collection.Aggregate(ctx, qry)
+
+	if err != nil {
+		return posts, err
+	}
+
+	if err := cur.All(context.Background(), &posts); err != nil {
+		return nil, err
+	}
+	defer cur.Close(ctx)
 
 	return posts, nil
 }
@@ -158,13 +245,19 @@ func (r *PostsRepository) UserList(userId uint) ([]*models.Post, error) {
  * @return bool
  * @return error
  */
-func (r *PostsRepository) Delete(id uint) (bool, error) {
+func (r *PostsRepository) Delete(id string) (bool, error) {
+	var ctx = context.Background()
+	postId, err := primitive.ObjectIDFromHex(id)
 
-	//db := r.db.Delete(&models.Post{}, id)
-	//
-	//if err := db.Error; err != nil {
-	//	return false, err
-	//}
+	if err != nil {
+		return false, err
+	}
+
+	_, err = r.collection.DeleteOne(ctx, bson.M{"_id": postId})
+
+	if err != nil {
+		return false, err
+	}
 
 	return true, nil
 }

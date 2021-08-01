@@ -3,9 +3,10 @@ package handlers
 import (
 	"encoding/json"
 	"github.com/gorilla/mux"
-	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"net/http"
 	"redditclone/configs"
+	"redditclone/pkg/auth"
 	"redditclone/pkg/domain/models"
 	"redditclone/pkg/domain/repositories"
 	"redditclone/pkg/helpers"
@@ -18,7 +19,6 @@ type PostsHandler struct {
 	CommentsRepository repositories.CommentsRepository
 	UsersRepository    repositories.UsersRepository
 	Config             configs.Config
-	Mongodb            *mongo.Client
 }
 
 /**
@@ -37,14 +37,19 @@ func (h *PostsHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// increment views each time a user open the post
-	//post.Views++
-	//post, err = h.PostsRepository.Update(post, []string{"views"})
+	if post == nil {
+		http.Error(w, "Post doesn't exist", http.StatusNotFound)
+		return
+	}
 
-	//if err != nil {
-	//	http.Error(w, err.Error(), http.StatusInternalServerError)
-	//	return
-	//}
+	// increment views each time a user open the post
+	post.Views++
+	post, err = h.PostsRepository.Update(post, []primitive.E{{"Views", post.Views}})
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	helpers.SerializeAndReturn(w, post)
 }
@@ -129,19 +134,18 @@ func (h *PostsHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
-	user := ctx.Value(configs.UserCtx).(map[string]string)
+	user := ctx.Value(configs.UserCtx).(auth.UserData)
 
-	userId, err := strconv.ParseUint(user["id"], 10, 0)
+	userId, err := strconv.ParseUint(user.Id, 10, 0)
 
 	if err != nil {
 		helpers.JsonError(w, http.StatusBadRequest, "Couldn't convert userId to uint!")
 		return
 	}
 
-	post.UserID = uint(userId)
 	post.User.ID = uint(userId)
-	post.User.Name = user["username"]
-	post.CreatedAt = time.Now().Format("2006-01-02 15:04:05")
+	post.User.Name = user.Username
+	post.CreatedAt = time.Now()
 
 	post, err = h.PostsRepository.Create(post)
 
@@ -161,14 +165,13 @@ func (h *PostsHandler) Create(w http.ResponseWriter, r *http.Request) {
  */
 func (h *PostsHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
-	id, err := strconv.ParseUint(params["id"], 10, 0)
+
+	success, err := h.PostsRepository.Delete(params["id"])
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	success, err := h.PostsRepository.Delete(uint(id))
 
 	type Message struct {
 		Message string `json:"message"`
@@ -207,9 +210,9 @@ func (h *PostsHandler) Comment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
-	user := ctx.Value(configs.UserCtx).(map[string]string)
+	user := ctx.Value(configs.UserCtx).(auth.UserData)
 
-	userId, err := strconv.ParseUint(user["id"], 10, 0)
+	userId, err := strconv.ParseUint(user.Id, 10, 0)
 
 	if err != nil {
 		helpers.JsonError(w, http.StatusBadRequest, "Couldn't convert userId to uint!")
@@ -217,9 +220,16 @@ func (h *PostsHandler) Comment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	postComment.UserID = uint(userId)
+	postComment.User.ID = uint(userId)
+	postComment.User.Name = user.Username
 	postComment.Body = reqComment.Comment
-	postComment.Created = time.Now().Format("2006-01-02 15:04:05")
-	postComment.PostID = routeParams["id"]
+	postComment.Created = time.Now()
+	postId, err := primitive.ObjectIDFromHex(routeParams["id"])
+	if err != nil {
+		helpers.JsonError(w, http.StatusBadRequest, "Couldn't create a primitive.ObjectIDFromHex() for postId!")
+		return
+	}
+	postComment.PostID = postId
 
 	postComment, err = h.CommentsRepository.Create(postComment)
 
@@ -247,14 +257,7 @@ func (h *PostsHandler) Comment(w http.ResponseWriter, r *http.Request) {
 func (h *PostsHandler) DeleteComment(w http.ResponseWriter, r *http.Request) {
 	routeParams := mux.Vars(r)
 
-	commentId, err := strconv.ParseUint(routeParams["commentId"], 10, 0)
-
-	if err != nil {
-		helpers.JsonError(w, http.StatusBadRequest, "Couldn't convert commentId to uint!")
-		return
-	}
-
-	_, err = h.CommentsRepository.Delete(uint(commentId))
+	_, err := h.CommentsRepository.Delete(routeParams["commentId"])
 
 	if err != nil {
 		helpers.JsonError(w, http.StatusBadRequest, "Couldn't delete post comment!")
