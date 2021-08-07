@@ -12,8 +12,8 @@ import (
 )
 
 type VotesHandler struct {
-	VotesRepository repositories.VotesRepository
-	PostsRepository repositories.PostsRepository
+	VotesRepository repositories.IVotesRepository
+	PostsRepository repositories.IPostsRepository
 	Config          configs.Config
 }
 

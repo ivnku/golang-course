@@ -11,7 +11,7 @@ import (
 )
 
 type UsersHandler struct {
-	UsersRepository repositories.UsersRepository
+	UsersRepository repositories.IUsersRepository
 	Config          configs.Config
 	SessionManager  auth.SessionManager
 }

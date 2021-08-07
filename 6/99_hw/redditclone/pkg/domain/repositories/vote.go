@@ -13,9 +13,14 @@ type VotesRepository struct {
 	collection *mongo.Collection
 }
 
-func NewVotesRepository(db *mongo.Client) VotesRepository {
+type IVotesRepository interface {
+	Create(vote *models.Vote) (*models.Vote, error)
+	Delete(id primitive.ObjectID) (bool, error)
+}
+
+func NewVotesRepository(db *mongo.Client) *VotesRepository {
 	collection := db.Database("redditclone").Collection("votes")
-	return VotesRepository{db, collection}
+	return &VotesRepository{db, collection}
 }
 
 /**

@@ -15,9 +15,9 @@ import (
 )
 
 type PostsHandler struct {
-	PostsRepository    repositories.PostsRepository
-	CommentsRepository repositories.CommentsRepository
-	UsersRepository    repositories.UsersRepository
+	PostsRepository    repositories.IPostsRepository
+	CommentsRepository repositories.ICommentsRepository
+	UsersRepository    repositories.IUsersRepository
 	Config             configs.Config
 }
 

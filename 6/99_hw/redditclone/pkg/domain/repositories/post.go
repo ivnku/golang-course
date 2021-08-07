@@ -13,9 +13,19 @@ type PostsRepository struct {
 	collection *mongo.Collection
 }
 
-func NewPostsRepository(db *mongo.Client) PostsRepository {
+type IPostsRepository interface {
+	Create(post *models.Post) (*models.Post, error)
+	Update(post *models.Post, fields []primitive.E) (*models.Post, error)
+	Get(id string) (*models.Post, error)
+	List() ([]*models.Post, error)
+	CategoryList(categoryName string) ([]*models.Post, error)
+	UserList(userId uint) ([]*models.Post, error)
+	Delete(id string) (bool, error)
+}
+
+func NewPostsRepository(db *mongo.Client) *PostsRepository {
 	collection := db.Database("redditclone").Collection("posts")
-	return PostsRepository{db, collection}
+	return &PostsRepository{db, collection}
 }
 
 /**

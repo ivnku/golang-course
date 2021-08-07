@@ -13,9 +13,14 @@ type CommentsRepository struct {
 	collection *mongo.Collection
 }
 
-func NewCommentsRepository(db *mongo.Client) CommentsRepository {
+type ICommentsRepository interface {
+	Create(postComment *models.Comment) (*models.Comment, error)
+	Delete(id string) (bool, error)
+}
+
+func NewCommentsRepository(db *mongo.Client) *CommentsRepository {
 	collection := db.Database("redditclone").Collection("comments")
-	return CommentsRepository{db, collection}
+	return &CommentsRepository{db, collection}
 }
 
 /**

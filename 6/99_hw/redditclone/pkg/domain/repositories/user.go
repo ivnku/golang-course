@@ -9,8 +9,15 @@ type UsersRepository struct {
 	db *gorm.DB
 }
 
-func NewUsersRepository(db *gorm.DB) UsersRepository {
-	return UsersRepository{db}
+type IUsersRepository interface {
+	List() ([]*models.User, error)
+	Get(id int) (*models.User, error)
+	GetByName(name string) (*models.User, error)
+	Create(user *models.User) (uint, error)
+}
+
+func NewUsersRepository(db *gorm.DB) *UsersRepository {
+	return &UsersRepository{db}
 }
 
 /**
