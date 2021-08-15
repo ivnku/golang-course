@@ -4,13 +4,12 @@ import (
 	"context"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
 	"redditclone/pkg/domain/models"
+	"redditclone/pkg/domain/repositories/mocks"
 )
 
 type PostsRepository struct {
-	db         *mongo.Client
-	collection *mongo.Collection
+	collection mocks.IMongoCollection
 }
 
 type IPostsRepository interface {
@@ -23,9 +22,8 @@ type IPostsRepository interface {
 	Delete(id string) (bool, error)
 }
 
-func NewPostsRepository(db *mongo.Client) *PostsRepository {
-	collection := db.Database("redditclone").Collection("posts")
-	return &PostsRepository{db, collection}
+func NewPostsRepository(collection mocks.IMongoCollection) *PostsRepository {
+	return &PostsRepository{collection}
 }
 
 /**
@@ -63,11 +61,7 @@ func (r *PostsRepository) Update(post *models.Post, fields []primitive.E) (*mode
 		fieldsToUpdate = append(fieldsToUpdate, primitive.E{Key: "$set", Value: bson.D{field}})
 	}
 
-	_, err := r.collection.UpdateOne(
-		ctx,
-		bson.M{"_id": post.ID},
-		fieldsToUpdate,
-	)
+	_, err := r.collection.UpdateOne(ctx, bson.M{"_id": post.ID}, fieldsToUpdate)
 
 	if err != nil {
 		return post, err
@@ -94,10 +88,10 @@ func (r *PostsRepository) Get(id string) (*models.Post, error) {
 			},
 		},
 		{"$lookup": bson.M{
-				"from":         "comments", // Child collection to join
-				"localField":   "_id",      // Parent collection reference holding field
-				"foreignField": "post_id",  // Child collection reference field
-				"as":           "comments", // Arbitrary field name to store result set
+			"from":         "comments", // Child collection to join
+			"localField":   "_id",      // Parent collection reference holding field
+			"foreignField": "post_id",  // Child collection reference field
+			"as":           "comments", // Arbitrary field name to store result set
 		}},
 		{"$lookup": bson.M{
 			"from":         "votes",

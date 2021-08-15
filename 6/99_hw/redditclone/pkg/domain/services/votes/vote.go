@@ -77,7 +77,7 @@ func ApplyVote(
 
 	if isAbleToVote {
 		vote := &models.Vote{
-			ID: primitive.NewObjectID(),
+			ID:     primitive.NewObjectID(),
 			PostId: post.ID,
 			UserId: userId,
 			Vote:   voteValue,

@@ -4,13 +4,12 @@ import (
 	"context"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
 	"redditclone/pkg/domain/models"
+	"redditclone/pkg/domain/repositories/mocks"
 )
 
 type CommentsRepository struct {
-	mongodb    *mongo.Client
-	collection *mongo.Collection
+	collection mocks.IMongoCollection
 }
 
 type ICommentsRepository interface {
@@ -18,9 +17,8 @@ type ICommentsRepository interface {
 	Delete(id string) (bool, error)
 }
 
-func NewCommentsRepository(db *mongo.Client) *CommentsRepository {
-	collection := db.Database("redditclone").Collection("comments")
-	return &CommentsRepository{db, collection}
+func NewCommentsRepository(collection mocks.IMongoCollection) *CommentsRepository {
+	return &CommentsRepository{collection}
 }
 
 /**

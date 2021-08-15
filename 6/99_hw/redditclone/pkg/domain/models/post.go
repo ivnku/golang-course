@@ -17,6 +17,6 @@ type Post struct {
 	Views            int                `json:"views" bson:"views"`
 	CreatedAt        time.Time          `json:"created" bson:"created"`
 	User             User               `json:"author"`
-	Comments         []*Comment          `json:"comments"`
+	Comments         []*Comment         `json:"comments"`
 	Votes            []*Vote            `json:"votes"`
 }

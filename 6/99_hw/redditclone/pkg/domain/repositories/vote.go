@@ -4,13 +4,12 @@ import (
 	"context"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
 	"redditclone/pkg/domain/models"
+	"redditclone/pkg/domain/repositories/mocks"
 )
 
 type VotesRepository struct {
-	mongodb    *mongo.Client
-	collection *mongo.Collection
+	collection mocks.IMongoCollection
 }
 
 type IVotesRepository interface {
@@ -18,9 +17,8 @@ type IVotesRepository interface {
 	Delete(id primitive.ObjectID) (bool, error)
 }
 
-func NewVotesRepository(db *mongo.Client) *VotesRepository {
-	collection := db.Database("redditclone").Collection("votes")
-	return &VotesRepository{db, collection}
+func NewVotesRepository(collection mocks.IMongoCollection) *VotesRepository {
+	return &VotesRepository{collection}
 }
 
 /**

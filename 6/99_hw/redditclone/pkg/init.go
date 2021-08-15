@@ -15,6 +15,7 @@ import (
 	"redditclone/pkg/auth"
 	"redditclone/pkg/domain/handlers"
 	"redditclone/pkg/domain/repositories"
+	"redditclone/pkg/domain/repositories/mocks"
 	"redditclone/pkg/middleware"
 	"time"
 )
@@ -49,9 +50,11 @@ func InitApp() {
 	}
 
 	usersRepo := repositories.NewUsersRepository(db)
-	postsRepo := repositories.NewPostsRepository(mongodb)
-	commentsRepo := repositories.NewCommentsRepository(mongodb)
-	votesRepo := repositories.NewVotesRepository(mongodb)
+
+	mongoDb := mongodb.Database("redditclone")
+	postsRepo := repositories.NewPostsRepository(&mocks.MongoCollection{Collection: mongoDb.Collection("posts")})
+	commentsRepo := repositories.NewCommentsRepository(&mocks.MongoCollection{Collection: mongoDb.Collection("comments")})
+	votesRepo := repositories.NewVotesRepository(&mocks.MongoCollection{Collection: mongoDb.Collection("votes")})
 
 	usersHandler := handlers.UsersHandler{UsersRepository: usersRepo, Config: config, SessionManager: *sessionManager}
 	postsHandler := handlers.PostsHandler{PostsRepository: postsRepo, CommentsRepository: commentsRepo, UsersRepository: usersRepo, Config: config}

@@ -17,7 +17,7 @@ import (
  * @Description: Testing getting the list of all users
  * @param t
  */
-func TestList(t *testing.T) {
+func TestUserRepoList(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("cant create mock: %s", err)
@@ -58,7 +58,7 @@ func TestList(t *testing.T) {
  * @Description: Testing getting of a user by id
  * @param t
  */
-func TestGet(t *testing.T) {
+func TestUserRepoGet(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("cant create mock: %s", err)
@@ -96,7 +96,7 @@ func TestGet(t *testing.T) {
  * @Description: Test getting a user by name
  * @param t
  */
-func TestGetByName(t *testing.T) {
+func TestUserRepoGetByName(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("cant create mock: %s", err)
@@ -138,7 +138,7 @@ func TestGetByName(t *testing.T) {
  * @Description: Tetsing create of a user
  * @param t
  */
-func TestCreate(t *testing.T) {
+func TestUserRepoCreate(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("cant create mock: %s", err)
