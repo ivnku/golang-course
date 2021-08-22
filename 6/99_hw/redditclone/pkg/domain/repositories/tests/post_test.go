@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"fmt"
 	"github.com/golang/mock/gomock"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -45,6 +46,7 @@ func TestPostsRepoCreate(t *testing.T) {
 		Return(&mongo.InsertOneResult{InsertedID: objID}, nil)
 
 	res, err := repo.Create(postToCreate)
+	fmt.Printf("the first: %v, and second %v", postToCreate, res)
 	if !reflect.DeepEqual(res, postToCreate) {
 		t.Errorf("bad result, expected %v, got %v", postToCreate, res)
 	}
@@ -110,7 +112,8 @@ func TestPostsRepoList(t *testing.T) {
 		Aggregate(ctx, gomock.Any()).
 		Return(mockCursor, nil)
 	mockCursor.EXPECT().
-		All(ctx, &expectedPosts).
+		All(ctx, gomock.AssignableToTypeOf(&expectedPosts)).
+		SetArg(1, expectedPosts).
 		Return(nil)
 
 	mockCursor.EXPECT().Close(gomock.Any())
@@ -141,7 +144,7 @@ func TestPostsRepoUpdate(t *testing.T) {
 	repo := repositories.NewPostsRepository(mockCollection)
 
 	objID := primitive.NewObjectID()
-	originalPost := &models.Post{
+	post := &models.Post{
 		ID:               objID,
 		Title:            "Post title",
 		Category:         "Some category",
@@ -153,25 +156,20 @@ func TestPostsRepoUpdate(t *testing.T) {
 		Views:            0,
 	}
 
-	updatedPost := &models.Post{
-		ID:               objID,
-		Title:            "Post title upd",
-		Category:         "Some category",
-		Score:            0,
-		Type:             "text",
-		Url:              "",
-		Text:             "post content",
-		UpvotePercentage: 0,
-		Views:            0,
-	}
+	post.Title = "Post title UPD"
 
 	mockCollection.EXPECT().
-		UpdateOne(ctx, bson.M{"_id": originalPost.ID}, primitive.E{Key: "$set", Value: bson.D{primitive.E{Key: "Title", Value: "Post title upd"}}}).
+		UpdateOne(
+			ctx,
+			bson.M{"_id": post.ID},
+			bson.D{primitive.E{Key: "$set", Value: bson.D{primitive.E{Key: "Title", Value: "Post title UPD"}}}},
+		).
 		Return(mockUpdateResult, nil)
 
-	res, err := repo.Update(originalPost, []primitive.E{{"Title", "Post title upd"}})
-	if !reflect.DeepEqual(res, updatedPost) {
-		t.Errorf("bad result, expected %v, got %v", updatedPost, res)
+	res, err := repo.Update(post, []primitive.E{{"Title", "Post title upd"}})
+
+	if !reflect.DeepEqual(res, post) {
+		t.Errorf("bad result, expected %v, got %v", post, res)
 	}
 
 	if err != nil {
