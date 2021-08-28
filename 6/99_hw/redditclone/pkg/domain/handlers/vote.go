@@ -15,6 +15,7 @@ type VotesHandler struct {
 	VotesRepository repositories.IVotesRepository
 	PostsRepository repositories.IPostsRepository
 	Config          configs.Config
+	VotesService    votes.IVotesService
 }
 
 /**
@@ -36,7 +37,7 @@ func (h *VotesHandler) Upvote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	post, err := votes.ApplyVote(h.PostsRepository, h.VotesRepository, routeParams["id"], uint(userId), 1)
+	post, err := h.VotesService.ApplyVote(routeParams["id"], uint(userId), 1)
 
 	if err != nil {
 		helpers.JsonError(w, http.StatusBadRequest, "Couldn't apply the vote!")
@@ -65,7 +66,7 @@ func (h *VotesHandler) Downvote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	post, err := votes.ApplyVote(h.PostsRepository, h.VotesRepository, routeParams["id"], uint(userId), -1)
+	post, err := h.VotesService.ApplyVote(routeParams["id"], uint(userId), -1)
 
 	if err != nil {
 		helpers.JsonError(w, http.StatusBadRequest, "Couldn't apply the vote!")
@@ -94,7 +95,7 @@ func (h *VotesHandler) Unvote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	post, err := votes.Unvote(h.PostsRepository, h.VotesRepository, uint(userId), routeParams["id"])
+	post, err := h.VotesService.Unvote(uint(userId), routeParams["id"])
 
 	if err != nil {
 		helpers.JsonError(w, http.StatusBadRequest, "Couldn't apply the vote!")

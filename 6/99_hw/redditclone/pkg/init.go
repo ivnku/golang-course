@@ -16,6 +16,7 @@ import (
 	"redditclone/pkg/domain/handlers"
 	"redditclone/pkg/domain/repositories"
 	"redditclone/pkg/domain/repositories/mocks"
+	"redditclone/pkg/domain/services/votes"
 	"redditclone/pkg/middleware"
 	"time"
 )
@@ -56,9 +57,11 @@ func InitApp() {
 	commentsRepo := repositories.NewCommentsRepository(&mocks.MongoCollection{Collection: mongoDb.Collection("comments")})
 	votesRepo := repositories.NewVotesRepository(&mocks.MongoCollection{Collection: mongoDb.Collection("votes")})
 
+	votesService := votes.NewVotesService(postsRepo, votesRepo)
+
 	usersHandler := handlers.UsersHandler{UsersRepository: usersRepo, Config: config, SessionManager: *sessionManager}
 	postsHandler := handlers.PostsHandler{PostsRepository: postsRepo, CommentsRepository: commentsRepo, UsersRepository: usersRepo, Config: config}
-	votesHandler := handlers.VotesHandler{VotesRepository: votesRepo, PostsRepository: postsRepo, Config: config}
+	votesHandler := handlers.VotesHandler{VotesRepository: votesRepo, PostsRepository: postsRepo, Config: config, VotesService: votesService}
 
 	router := mux.NewRouter()
 	authRouter := router.PathPrefix("/").Subrouter()

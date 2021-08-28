@@ -3,7 +3,6 @@ package tests
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/golang/mock/gomock"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"io"
@@ -13,6 +12,7 @@ import (
 	"redditclone/pkg/domain/handlers"
 	"redditclone/pkg/domain/models"
 	"redditclone/pkg/domain/repositories/mocks"
+	mocks2 "redditclone/pkg/domain/services/mocks"
 	"testing"
 )
 
@@ -23,28 +23,18 @@ func TestVotesHandlerUpvote(t *testing.T) {
 	config := configs.Config{Token: "sometoken"}
 
 	votesRepository := mocks.NewMockIVotesRepository(ctrl)
+	votesService := mocks2.NewMockIVotesService(ctrl)
 	postsRepository := mocks.NewMockIPostsRepository(ctrl)
 	votesHandler := &handlers.VotesHandler{
 		VotesRepository: votesRepository,
 		PostsRepository: postsRepository,
 		Config:          config,
+		VotesService:    votesService,
 	}
 
-	postIdString := "qwertyxyzdgrqwertyxyzdgr"
+	postIdString := "61059ec7adc529aef3ac11b3"
 	postId, err := primitive.ObjectIDFromHex(postIdString)
-	voteId := primitive.NewObjectID()
 
-	post := &models.Post{
-		ID:               postId,
-		Title:            "Some post",
-		Category:         "music",
-		Score:            0,
-		Type:             "text",
-		Url:              "",
-		Text:             "some content",
-		UpvotePercentage: 0,
-		Views:            0,
-	}
 	postAfterUpvote := &models.Post{
 		ID:               postId,
 		Title:            "Some post",
@@ -85,21 +75,9 @@ func TestVotesHandlerUpvote(t *testing.T) {
 	}
 
 	// Test correct upvote
-	vote := &models.Vote{
-		ID:     voteId,
-		PostId: postId,
-		UserId: 10,
-		Vote:   1,
-	}
-
-	//var posts []*models.Post
-
-	postsRepository.EXPECT().Get("").Return(post, nil)
-	votesRepository.EXPECT().Create(vote).Return(vote, nil)
-	postsRepository.EXPECT().Update(post, []primitive.E{
-		{"upvote_percentage", 100},
-		{"score", 1},
-	}).Return(postAfterUpvote, nil)
+	votesService.EXPECT().
+		ApplyVote("", uint(10), 1).
+		Return(postAfterUpvote, nil)
 
 	req = httptest.NewRequest("GET", "/api/post/"+postIdString+"/upvote", nil)
 	userData.Id = "10"
@@ -116,7 +94,11 @@ func TestVotesHandlerUpvote(t *testing.T) {
 		t.Errorf("couldn't get response body!")
 		return
 	}
-	fmt.Printf("response is: %v", response)
+
+	if response["score"] != 1. || response["upvotePercentage"] != 100. {
+		t.Errorf("Wrong vote data!")
+		return
+	}
 }
 
 func parseResponse(t *testing.T, w *httptest.ResponseRecorder) (map[string]interface{}, error) {

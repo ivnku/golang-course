@@ -6,12 +6,31 @@ import (
 	"redditclone/pkg/domain/repositories"
 )
 
+type IVotesService interface {
+	CalculateUpvotePercentage(votes []*models.Vote) int
+	CalculateScore(votes []*models.Vote) int
+	ApplyVote(postId string, userId uint, voteValue int, ) (*models.Post, error)
+	Unvote(userId uint, postId string, ) (*models.Post, error)
+}
+
+type VotesService struct {
+	postsRepository repositories.IPostsRepository
+	votesRepository repositories.IVotesRepository
+}
+
+func NewVotesService(postsRepository repositories.IPostsRepository, votesRepository repositories.IVotesRepository) *VotesService {
+	return &VotesService{
+		postsRepository: postsRepository,
+		votesRepository: votesRepository,
+	}
+}
+
 /**
  * @Description: Calculate upvote percentage
  * @param votes
  * @return int
  */
-func CalculateUpvotePercentage(votes []*models.Vote) int {
+func (vs *VotesService) CalculateUpvotePercentage(votes []*models.Vote) int {
 	totalVotes := len(votes)
 	upvotes := 0
 	for _, vote := range votes {
@@ -34,7 +53,7 @@ func CalculateUpvotePercentage(votes []*models.Vote) int {
  * @param votes
  * @return int
  */
-func CalculateScore(votes []*models.Vote) int {
+func (vs *VotesService) CalculateScore(votes []*models.Vote) int {
 	score := 0
 	for _, vote := range votes {
 		score += vote.Vote
@@ -53,14 +72,12 @@ func CalculateScore(votes []*models.Vote) int {
  * @return *models.Post
  * @return error
  */
-func ApplyVote(
-	postsRepository repositories.IPostsRepository,
-	votesRepository repositories.IVotesRepository,
+func (vs *VotesService) ApplyVote(
 	postId string,
 	userId uint,
 	voteValue int,
 ) (*models.Post, error) {
-	post, err := postsRepository.Get(postId)
+	post, err := vs.postsRepository.Get(postId)
 
 	if err != nil {
 		return nil, err
@@ -83,17 +100,17 @@ func ApplyVote(
 			Vote:   voteValue,
 		}
 
-		vote, err = votesRepository.Create(vote)
+		vote, err = vs.votesRepository.Create(vote)
 
 		if err != nil {
 			return post, err
 		}
 
 		post.Votes = append(post.Votes, vote)
-		post.UpvotePercentage = CalculateUpvotePercentage(post.Votes)
-		post.Score = CalculateScore(post.Votes)
+		post.UpvotePercentage = vs.CalculateUpvotePercentage(post.Votes)
+		post.Score = vs.CalculateScore(post.Votes)
 
-		post, err = postsRepository.Update(post, []primitive.E{
+		post, err = vs.postsRepository.Update(post, []primitive.E{
 			{"upvote_percentage", post.UpvotePercentage},
 			{"score", post.Score},
 		})
@@ -102,7 +119,7 @@ func ApplyVote(
 			return post, err
 		}
 	} else {
-		post, err = Unvote(postsRepository, votesRepository, userId, post.ID.String())
+		post, err = vs.Unvote(userId, post.ID.String())
 	}
 
 	return post, nil
@@ -116,15 +133,13 @@ func ApplyVote(
  * @return *models.Post
  * @return error
  */
-func Unvote(
-	postsRepository repositories.IPostsRepository,
-	votesRepository repositories.IVotesRepository,
+func (vs *VotesService) Unvote(
 	userId uint,
 	postId string,
 ) (*models.Post, error) {
 
 	var voteId primitive.ObjectID
-	post, err := postsRepository.Get(postId)
+	post, err := vs.postsRepository.Get(postId)
 
 	if err != nil {
 		return nil, err
@@ -133,7 +148,7 @@ func Unvote(
 	for _, vote := range post.Votes {
 		if vote.UserId == userId {
 			voteId = vote.ID
-			_, err := votesRepository.Delete(vote.ID)
+			_, err := vs.votesRepository.Delete(vote.ID)
 			if err != nil {
 				return nil, err
 			}
@@ -148,10 +163,10 @@ func Unvote(
 		}
 	}
 
-	post.Score = CalculateScore(post.Votes)
-	post.UpvotePercentage = CalculateUpvotePercentage(post.Votes)
+	post.Score = vs.CalculateScore(post.Votes)
+	post.UpvotePercentage = vs.CalculateUpvotePercentage(post.Votes)
 
-	post, err = postsRepository.Update(post, []primitive.E{
+	post, err = vs.postsRepository.Update(post, []primitive.E{
 		{"upvote_percentage", post.UpvotePercentage},
 		{"score", post.Score},
 	})
