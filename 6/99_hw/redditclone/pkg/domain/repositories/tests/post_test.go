@@ -2,7 +2,6 @@ package tests
 
 import (
 	"context"
-	"fmt"
 	"github.com/golang/mock/gomock"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -46,7 +45,7 @@ func TestPostsRepoCreate(t *testing.T) {
 		Return(&mongo.InsertOneResult{InsertedID: objID}, nil)
 
 	res, err := repo.Create(postToCreate)
-	fmt.Printf("the first: %v, and second %v", postToCreate, res)
+
 	if !reflect.DeepEqual(res, postToCreate) {
 		t.Errorf("bad result, expected %v, got %v", postToCreate, res)
 	}
@@ -166,7 +165,7 @@ func TestPostsRepoUpdate(t *testing.T) {
 		).
 		Return(mockUpdateResult, nil)
 
-	res, err := repo.Update(post, []primitive.E{{"Title", "Post title upd"}})
+	res, err := repo.Update(post, []primitive.E{{"Title", "Post title UPD"}})
 
 	if !reflect.DeepEqual(res, post) {
 		t.Errorf("bad result, expected %v, got %v", post, res)

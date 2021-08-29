@@ -9,8 +9,8 @@ import (
 type IVotesService interface {
 	CalculateUpvotePercentage(votes []*models.Vote) int
 	CalculateScore(votes []*models.Vote) int
-	ApplyVote(postId string, userId uint, voteValue int, ) (*models.Post, error)
-	Unvote(userId uint, postId string, ) (*models.Post, error)
+	ApplyVote(postId string, userId uint, voteValue int) (*models.Post, error)
+	Unvote(userId uint, postId string) (*models.Post, error)
 }
 
 type VotesService struct {
@@ -72,11 +72,7 @@ func (vs *VotesService) CalculateScore(votes []*models.Vote) int {
  * @return *models.Post
  * @return error
  */
-func (vs *VotesService) ApplyVote(
-	postId string,
-	userId uint,
-	voteValue int,
-) (*models.Post, error) {
+func (vs *VotesService) ApplyVote(postId string, userId uint, voteValue int) (*models.Post, error) {
 	post, err := vs.postsRepository.Get(postId)
 
 	if err != nil {
@@ -133,10 +129,7 @@ func (vs *VotesService) ApplyVote(
  * @return *models.Post
  * @return error
  */
-func (vs *VotesService) Unvote(
-	userId uint,
-	postId string,
-) (*models.Post, error) {
+func (vs *VotesService) Unvote(userId uint, postId string) (*models.Post, error) {
 
 	var voteId primitive.ObjectID
 	post, err := vs.postsRepository.Get(postId)
