@@ -27,6 +27,7 @@ func StartMyMicroservice(ctx context.Context, listenAddr string, ACLData string)
 
 	server := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(CheckAccessInterceptor),
+		grpc.ChainStreamInterceptor(CheckAccessStreamInterceptor),
 	)
 
 	businessService := NewBusinessService(acl)
@@ -54,41 +55,45 @@ func StartMyMicroservice(ctx context.Context, listenAddr string, ACLData string)
 
 }
 
-func checkACL(ctx context.Context, acl map[string][]string) (bool, error) {
-
-	return true, nil
-}
-
-func CheckAccessInterceptor(
-	ctx context.Context,
-	req interface{},
-	info *grpc.UnaryServerInfo,
-	handler grpc.UnaryHandler,
-) (interface{}, error) {
+/**
+ * @Description: Get consumer name from context
+ * @param ctx
+ * @return string
+ * @return error
+ */
+func getConsumer(ctx context.Context) (string, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 
 	if !ok {
-		return nil, status.Errorf(codes.DataLoss, "Error while getting metadata")
+		return "", status.Errorf(codes.DataLoss, "Error while getting metadata")
 	}
 
 	consumerArr, ok := md["consumer"]
 
 	if !ok {
-		return nil, status.Errorf(codes.Unauthenticated, "Consumer not provided")
+		return "", status.Errorf(codes.Unauthenticated, "Consumer not provided")
 	}
-	consumer := consumerArr[0]
 
-	var acl map[string][]string
-	switch info.Server.(type) {
-	case *BusinessService:
-		acl = info.Server.(*BusinessService).ACL
-	case *AdminService:
-		acl = info.Server.(*AdminService).ACL
+	return consumerArr[0], nil
+}
+
+/**
+ * @Description: Check if the user can access specific method
+ * @param ctx
+ * @param acl
+ * @param fullMethod
+ * @return error
+ */
+func CheckACL(ctx context.Context, acl map[string][]string, fullMethod string) error {
+	consumer, err := getConsumer(ctx)
+
+	if err != nil {
+		return err
 	}
 
 	canAccess := false
 	consumerAllowedMethods := acl[consumer]
-	requestedPath := strings.Split(info.FullMethod, "/")
+	requestedPath := strings.Split(fullMethod, "/")
 	for _, method := range consumerAllowedMethods {
 		aclPath := strings.Split(method, "/")
 		if requestedPath[1] == aclPath[1] && (requestedPath[2] == aclPath[2] || aclPath[2] == "*") {
@@ -99,11 +104,69 @@ func CheckAccessInterceptor(
 	print(requestedPath)
 
 	if !canAccess {
+		return status.Errorf(codes.Unauthenticated, "Consumer cannot access method")
+	}
+
+	return nil
+}
+
+/**
+ * @Description: Check access before executing the functions
+ * @return func
+ */
+func CheckAccessInterceptor(
+	ctx context.Context,
+	req interface{},
+	info *grpc.UnaryServerInfo,
+	handler grpc.UnaryHandler,
+) (interface{}, error) {
+
+	var acl map[string][]string
+	switch info.Server.(type) {
+	case *BusinessService:
+		acl = info.Server.(*BusinessService).ACL
+	case *AdminService:
+		acl = info.Server.(*AdminService).ACL
+	}
+
+	err := CheckACL(ctx, acl, info.FullMethod)
+
+	if err != nil {
 		return nil, status.Errorf(codes.Unauthenticated, "Consumer cannot access method")
 	}
 
 	return handler(ctx, req)
 }
+
+/**
+ * @Description: Check access before executing the functions (Stream)
+ * @return func
+ */
+func CheckAccessStreamInterceptor(
+	srv interface{},
+	ss grpc.ServerStream,
+	info *grpc.StreamServerInfo,
+	handler grpc.StreamHandler,
+) error {
+
+	var acl map[string][]string
+	switch srv.(type) {
+	case *BusinessService:
+		acl = srv.(*BusinessService).ACL
+	case *AdminService:
+		acl = srv.(*AdminService).ACL
+	}
+
+	err := CheckACL(ss.Context(), acl, info.FullMethod)
+
+	if err != nil {
+		return status.Errorf(codes.Unauthenticated, "Consumer cannot access method")
+	}
+
+	return handler(srv, ss)
+}
+
+
 
 // Business service
 type BusinessService struct {
@@ -132,7 +195,9 @@ func (srv *BusinessService) mustEmbedUnimplementedBizServer() {
 
 // Admin service
 type AdminService struct {
-	ACL map[string][]string
+	ACL      map[string][]string
+	LogSubs  map[string]chan string
+	StatSubs map[string]chan string
 }
 
 func NewAdminService(acl map[string][]string) *AdminService {
@@ -140,7 +205,8 @@ func NewAdminService(acl map[string][]string) *AdminService {
 }
 
 func (a AdminService) Logging(nothing *Nothing, server Admin_LoggingServer) error {
-	panic("implement me")
+	fmt.Println("Inside Logging")
+	return nil
 }
 
 func (a AdminService) Statistics(interval *StatInterval, server Admin_StatisticsServer) error {
