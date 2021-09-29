@@ -247,6 +247,13 @@ func NewAdminService(acl map[string][]string) *AdminService {
 	}
 }
 
+/**
+ * @Description: Set up new subscriber and listen for this subscriber channel
+ * @receiver a
+ * @param nothing
+ * @param server
+ * @return error
+ */
 func (a *AdminService) Logging(nothing *Nothing, server Admin_LoggingServer) error {
 	ch := make(chan *Event)
 
@@ -254,7 +261,6 @@ func (a *AdminService) Logging(nothing *Nothing, server Admin_LoggingServer) err
 	a.LogSubs = append(a.LogSubs, ch)
 	a.LogSubsMutex.Unlock()
 
-	//go func() {
 	for {
 		select {
 		case logEvent := <-ch:
@@ -263,20 +269,17 @@ func (a *AdminService) Logging(nothing *Nothing, server Admin_LoggingServer) err
 				a.LogSubsMutex.Lock()
 				a.LogSubs = removeChannel(a.LogSubs, ch)
 				a.LogSubsMutex.Unlock()
-				//break
+
 				return err
 			}
 		case <-server.Context().Done():
 			a.LogSubsMutex.Lock()
 			a.LogSubs = removeChannel(a.LogSubs, ch)
 			a.LogSubsMutex.Unlock()
-			//break
+
 			return server.Context().Err()
 		}
 	}
-	//}()
-
-	//return nil
 }
 
 /**
