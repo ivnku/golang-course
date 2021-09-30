@@ -8,8 +8,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	peer2 "google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
-	"log"
 	"net"
 	"strings"
 	"sync"
@@ -40,7 +40,7 @@ func StartMyMicroservice(ctx context.Context, listenAddr string, ACLData string)
 
 	listener, err := net.Listen("tcp", listenAddr)
 	if err != nil {
-		log.Fatalln("Error occurred while starting listening the port", err)
+		return err
 	}
 
 	go adminService.watchForLogs(ctx)
@@ -312,11 +312,20 @@ func (a *AdminService) Log(ctx context.Context, fullMethod string) error {
 		return err
 	}
 
+	peer, ok := peer2.FromContext(ctx)
+
+	var addr string
+	if !ok {
+		addr = "127.0.0.1:"
+	} else {
+		addr = peer.Addr.String()
+	}
+
 	a.Logs <- &Event{
 		Timestamp: 0,
 		Consumer:  consumer,
 		Method:    fullMethod,
-		Host:      "127.0.0.1:",
+		Host:      addr,
 	}
 
 	return nil
